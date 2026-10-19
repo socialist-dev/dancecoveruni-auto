@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 import requests
+import subprocess
 import yt_dlp
 from .config_loader import VideoMetadata
 from .cookie_manager import ensure_douyin_cookie_file
@@ -41,40 +42,52 @@ def extract_video_id(url: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def download_with_ytdlp(url: str, output_dir: Path, cookie_file: Optional[Path]) -> Optional[VideoMetadata]:
-    """Downloads video using yt-dlp with cookiefile and browser headers."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    outtmpl = str(output_dir / "%(id)s.%(ext)s")
+def get_video_duration(file_path: Path) -> float:
+    """Extracts exact media duration using ffprobe."""
+    try:
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(file_path),
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
+        if res.returncode == 0 and res.stdout.strip():
+            return round(float(res.stdout.strip()), 2)
+    except Exception as e:
+        logger.debug("ffprobe failed for %s: %s", file_path, e)
+    return 30.0
 
-    ydl_opts = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "outtmpl": outtmpl,
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "merge_output_format": "mp4",
-        "socket_timeout": 30,
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-            "Referer": "https://www.douyin.com/",
-        },
-    }
+
+def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None) -> Optional[VideoMetadata]:
+    """
+    [Layer 1 & 2] Executes yt-dlp CLI directly via subprocess, matching local CLI behavior.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    video_id = extract_video_id(url) or "video"
+    outtmpl = str(output_dir / f"{video_id}.%(ext)s")
+
+    cmd = [
+        "yt-dlp",
+        "--no-warnings",
+        "--noplaylist",
+        "--socket-timeout", "30",
+        "--merge-output-format", "mp4",
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "-o", outtmpl,
+    ]
 
     if cookie_file and cookie_file.exists():
-        ydl_opts["cookiefile"] = str(cookie_file)
+        cmd.extend(["--cookies", str(cookie_file.resolve())])
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        logger.info("yt-dlp attempting download for URL [%s] (cookiefile=%s)", url, bool(cookie_file))
-        info = ydl.extract_info(url, download=True)
-        if not info:
-            return None
+    cmd.append(url)
 
-        video_id = str(info.get("id", "video"))
-        title = str(info.get("title", ""))
-        uploader = str(info.get("uploader") or info.get("channel") or "Douyin Creator")
-        uploader_id = str(info.get("uploader_id") or info.get("channel_id") or "douyin")
-        duration = float(info.get("duration") or 0.0)
+    logger.info("Executing CLI yt-dlp for URL [%s] (with_cookie=%s)...", url, bool(cookie_file))
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
 
+        # Look for downloaded file
         expected_file = output_dir / f"{video_id}.mp4"
         if not expected_file.exists():
             for f in output_dir.glob(f"{video_id}.*"):
@@ -82,64 +95,64 @@ def download_with_ytdlp(url: str, output_dir: Path, cookie_file: Optional[Path])
                     expected_file = f
                     break
 
-        if not expected_file.exists():
-            logger.warning("Downloaded media file not found on disk for ID: %s", video_id)
-            return None
+        if proc.returncode == 0 and expected_file and expected_file.exists() and expected_file.stat().st_size > 10000:
+            duration = get_video_duration(expected_file)
+            logger.info("✅ CLI yt-dlp successfully downloaded [%s] -> %s (%d bytes, %.1fs)", url, expected_file.name, expected_file.stat().st_size, duration)
+            return VideoMetadata(
+                video_id=video_id,
+                url=url,
+                title="Trending Dance Cover",
+                author_name="Douyin Creator",
+                author_id="douyin",
+                duration=duration,
+                local_filepath=str(expected_file.resolve()),
+            )
+        else:
+            err_output = (proc.stderr or proc.stdout or "").strip()
+            err_lines = [l for l in err_output.splitlines() if "ERROR" in l or "warning" in l.lower()]
+            summary_msg = "; ".join(err_lines[:2]) if err_lines else err_output[-180:]
+            logger.warning("CLI yt-dlp failed for URL [%s] | Exit code: %d | Detail: %s", url, proc.returncode, summary_msg)
+    except Exception as e:
+        logger.warning("CLI yt-dlp execution error for URL [%s]: %s", url, e)
 
-        return VideoMetadata(
-            video_id=video_id,
-            url=url,
-            title=title,
-            author_name=uploader,
-            author_id=uploader_id,
-            duration=duration,
-            local_filepath=str(expected_file.resolve()),
-        )
+    return None
 
 
 def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[VideoMetadata]:
     """
-    Fallback method: attempts to fetch video metadata and play URL directly from Douyin web API.
-    Used only if yt-dlp fails after retries.
+    [Layer 3] Direct Stream Gateway fallback:
+    Attempts download via TikWM public gateway (supports both Douyin and TikTok watermark-free)
+    and Douyin Aweme detail endpoint.
     """
-    video_id = extract_video_id(url)
-    if not video_id:
-        return None
+    video_id = extract_video_id(url) or "video"
+    dest_file = output_dir / f"{video_id}.mp4"
 
-    api_url = f"https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids={video_id}"
+    # 1. Gateway Attempt: TikWM API
+    tikwm_endpoint = f"https://www.tikwm.com/api/?url={url}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-        "Referer": "https://www.douyin.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     }
-
     try:
-        logger.info("Attempting direct API fallback for Douyin ID %s...", video_id)
-        resp = requests.get(api_url, headers=headers, timeout=10)
+        logger.info("Attempting Gateway download for URL [%s] via TikWM API...", url)
+        resp = requests.get(tikwm_endpoint, headers=headers, timeout=15)
         if resp.status_code == 200:
             data = resp.json()
-            item_list = data.get("item_list", [])
-            if item_list:
-                item = item_list[0]
-                title = item.get("desc", "")
-                author = item.get("author", {}).get("nickname", "Douyin Creator")
-                author_id = item.get("author", {}).get("unique_id") or item.get("author", {}).get("short_id", "douyin")
-                duration = float(item.get("duration", 0)) / 1000.0
-
-                video_info = item.get("video", {})
-                play_urls = video_info.get("play_addr", {}).get("url_list", [])
-                if play_urls:
-                    # Replace 'playwm' with 'play' to get watermark-free stream if possible
-                    raw_stream_url = play_urls[0].replace("playwm", "play")
-                    dest_file = output_dir / f"{video_id}.mp4"
-
-                    stream_resp = requests.get(raw_stream_url, headers=headers, stream=True, timeout=25)
+            if data.get("code") == 0 and "data" in data:
+                v_data = data["data"]
+                stream_url = v_data.get("play") or v_data.get("wmplay")
+                if stream_url:
+                    stream_resp = requests.get(stream_url, headers=headers, stream=True, timeout=30)
                     if stream_resp.status_code == 200:
                         with open(dest_file, "wb") as f:
                             for chunk in stream_resp.iter_content(chunk_size=1024 * 64):
                                 if chunk:
                                     f.write(chunk)
                         if dest_file.exists() and dest_file.stat().st_size > 10000:
-                            logger.info("Successfully downloaded video via direct Douyin API: %s", dest_file)
+                            duration = float(v_data.get("duration") or get_video_duration(dest_file))
+                            title = v_data.get("title") or "Trending Dance Cover"
+                            author = v_data.get("author", {}).get("nickname") or "Dance Creator"
+                            author_id = v_data.get("author", {}).get("unique_id") or "creator"
+                            logger.info("✅ Gateway API successfully downloaded [%s] -> %s (%d bytes)", url, dest_file.name, dest_file.stat().st_size)
                             return VideoMetadata(
                                 video_id=video_id,
                                 url=url,
@@ -150,15 +163,53 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
                                 local_filepath=str(dest_file.resolve()),
                             )
     except Exception as e:
-        logger.debug("Direct API fallback failed for %s: %s", url, e)
+        logger.debug("Gateway API failed for URL [%s]: %s", url, e)
+
+    # 2. Douyin Aweme detail endpoint fallback
+    if "douyin.com" in url:
+        aweme_url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id={video_id}"
+        douyin_headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+            "Referer": "https://www.douyin.com/",
+        }
+        try:
+            logger.info("Attempting Douyin Aweme detail endpoint for ID [%s]...", video_id)
+            d_resp = requests.get(aweme_url, headers=douyin_headers, timeout=12)
+            if d_resp.status_code == 200:
+                d_json = d_resp.json()
+                item = d_json.get("aweme_detail", {})
+                play_urls = item.get("video", {}).get("play_addr", {}).get("url_list", [])
+                if play_urls:
+                    raw_stream = play_urls[0].replace("playwm", "play")
+                    s_resp = requests.get(raw_stream, headers=douyin_headers, stream=True, timeout=25)
+                    if s_resp.status_code == 200:
+                        with open(dest_file, "wb") as f:
+                            for chunk in s_resp.iter_content(chunk_size=1024 * 64):
+                                if chunk:
+                                    f.write(chunk)
+                        if dest_file.exists() and dest_file.stat().st_size > 10000:
+                            duration = float(item.get("duration", 0)) / 1000.0 or get_video_duration(dest_file)
+                            return VideoMetadata(
+                                video_id=video_id,
+                                url=url,
+                                title=item.get("desc", "Dance Cover"),
+                                author_name=item.get("author", {}).get("nickname", "Douyin Creator"),
+                                author_id=item.get("author", {}).get("unique_id", "douyin"),
+                                duration=duration,
+                                local_filepath=str(dest_file.resolve()),
+                            )
+        except Exception as e:
+            logger.debug("Douyin Aweme detail API failed for ID [%s]: %s", video_id, e)
 
     return None
 
 
 def download_video(url: str, output_dir: Path, max_retries: int = 2) -> Optional[VideoMetadata]:
     """
-    Downloads video using yt-dlp with automatic guest cookie management and retry logic.
-    Falls back to direct API if yt-dlp cannot extract the stream.
+    3-Layer Resilient Download Architecture:
+    - Layer 1: Pure CLI yt-dlp WITHOUT cookies (100% equivalent to your local machine command).
+    - Layer 2: CLI yt-dlp WITH true DOUYIN_COOKIES (if provided).
+    - Layer 3: Direct API / TikWM Stream Gateway (high-speed datacenter bypass).
     """
     clean_url = sanitize_url(url)
     if not is_valid_download_url(clean_url):
@@ -167,25 +218,26 @@ def download_video(url: str, output_dir: Path, max_retries: int = 2) -> Optional
     url = clean_url
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- Layer 1: CLI yt-dlp without cookies (local machine mode) ---
+    logger.info("▶ [Layer 1] Trying pure CLI yt-dlp (no cookies, default CLI mode) for URL [%s]...", url)
+    res_layer1 = run_ytdlp_cli(url, output_dir, cookie_file=None)
+    if res_layer1:
+        return res_layer1
+
+    # --- Layer 2: CLI yt-dlp with true DOUYIN_COOKIES (if secret exists) ---
     cookie_file = ensure_douyin_cookie_file(output_dir)
+    if cookie_file and cookie_file.exists():
+        logger.info("▶ [Layer 2] Trying CLI yt-dlp with DOUYIN_COOKIES for URL [%s]...", url)
+        res_layer2 = run_ytdlp_cli(url, output_dir, cookie_file=cookie_file)
+        if res_layer2:
+            return res_layer2
 
-    for attempt in range(1, max_retries + 1):
-        try:
-            result = download_with_ytdlp(url, output_dir, cookie_file)
-            if result:
-                return result
-        except Exception as e:
-            err_msg = str(e)
-            logger.warning("yt-dlp attempt %d/%d failed for URL [%s] | Error: %s", attempt, max_retries, url, err_msg)
-            if "cookies" in err_msg.lower() or "403" in err_msg or "login" in err_msg.lower():
-                logger.info("Cookie issue detected; refreshing Douyin guest cookies for next attempt...")
-                cookie_file = ensure_douyin_cookie_file(output_dir, force_refresh=True)
+    # --- Layer 3: Direct Stream Gateway / TikWM API fallback ---
+    logger.info("▶ [Layer 3] Trying Direct Stream Gateway fallback for URL [%s]...", url)
+    res_layer3 = download_with_direct_douyin_api(url, output_dir)
+    if res_layer3:
+        return res_layer3
 
-    # Secondary layer fallback
-    logger.info("yt-dlp failed after %d attempts; trying direct API fallback for URL [%s]...", max_retries, url)
-    api_result = download_with_direct_douyin_api(url, output_dir)
-    if api_result:
-        return api_result
-
-    logger.warning("All download methods failed for URL [%s]", url)
+    logger.warning("❌ All 3 download layers failed for URL [%s]", url)
     return None

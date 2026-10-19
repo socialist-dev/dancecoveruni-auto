@@ -164,8 +164,8 @@ def parse_and_validate_cookies(raw_text: str) -> Optional[str]:
 
 def ensure_douyin_cookie_file(output_dir: Path, force_refresh: bool = False) -> Optional[Path]:
     """
-    Ensures a valid Netscape cookie file exists in output_dir.
-    Checks environment variable DOUYIN_COOKIES first; if not present, auto-generates guest cookies.
+    Ensures a valid Netscape cookie file exists in output_dir ONLY if DOUYIN_COOKIES is provided.
+    Does NOT generate fake guest cookies, allowing yt-dlp to run cleanly without cookie flags.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     cookie_path = output_dir / "douyin_cookies.txt"
@@ -180,20 +180,11 @@ def ensure_douyin_cookie_file(output_dir: Path, force_refresh: bool = False) -> 
             logger.info("Successfully wrote %d bytes to cookie file: %s", cookie_path.stat().st_size, cookie_path)
             return cookie_path
         else:
-            logger.warning("Could not parse DOUYIN_COOKIES secret! Falling back to guest cookie generator.")
+            logger.warning("Could not parse DOUYIN_COOKIES secret!")
 
     if cookie_path.exists() and not force_refresh:
         if cookie_path.stat().st_size > 50:
             return cookie_path
 
-    # 2. Automatically generate guest cookies if env not provided
-    logger.info("Auto-generating fresh Douyin guest cookies...")
-    cookies = fetch_douyin_guest_cookies()
-    if cookies:
-        content = generate_netscape_cookie_content(cookies)
-        cookie_path.write_text(content, encoding="utf-8")
-        logger.info("Wrote fresh guest Netscape cookies to: %s (%d bytes)", cookie_path, cookie_path.stat().st_size)
-        return cookie_path
-
-    logger.warning("Could not obtain Douyin guest cookies; cookie file may be empty.")
+    logger.info("No DOUYIN_COOKIES provided; yt-dlp will run cleanly in unauthenticated CLI mode (no cookies).")
     return None

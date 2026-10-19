@@ -90,11 +90,11 @@ def extract_video_urls_from_text(text: str) -> List[str]:
     return urls
 
 
-def search_with_jina(keyword: str, api_key: Optional[str] = None) -> List[str]:
+def search_with_jina(keyword: str, api_key: Optional[str] = None, site: str = "douyin.com") -> List[str]:
     """
     Uses Jina Search (s.jina.ai) adhering strictly to jina-docs specifications:
-    - X-Respond-With: no-content (avoids heavy page scraping, prevents 20s read timeout)
-    - X-Site: douyin.com (restricts search directly to douyin.com domain)
+    - X-Respond-With: no-content (avoids heavy page scraping, prevents read timeout)
+    - X-Site: douyin.com or tiktok.com (restricts search directly to target video domain)
     - Accept: application/json (parses clean structured JSON results)
     """
     encoded_query = urllib.parse.quote_plus(keyword)
@@ -103,13 +103,13 @@ def search_with_jina(keyword: str, api_key: Optional[str] = None) -> List[str]:
     headers = {
         "Accept": "application/json",
         "X-Respond-With": "no-content",
-        "X-Site": "douyin.com",
+        "X-Site": site,
     }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
     try:
-        logger.info("Querying Jina Search (s.jina.ai) for: '%s' (X-Site: douyin.com)...", keyword)
+        logger.info("Querying Jina Search (s.jina.ai) for: '%s' (X-Site: %s)...", keyword, site)
         resp = requests.get(url, headers=headers, timeout=25)
 
         if resp.status_code == 200:
@@ -128,7 +128,6 @@ def search_with_jina(keyword: str, api_key: Optional[str] = None) -> List[str]:
                             seen.add(canonical)
                             found_urls.append(canonical)
             else:
-                # Text/Markdown fallback
                 found_urls = extract_video_urls_from_text(resp.text)
 
             logger.info("Jina Search returned %d valid canonical video URLs for '%s'", len(found_urls), keyword)
@@ -173,20 +172,19 @@ def discover_video_urls(
     max_needed: int = 15,
 ) -> List[str]:
     """
-    Iterates through keywords to discover fresh canonical Douyin video URLs.
+    Iterates through keywords to discover fresh canonical Douyin & TikTok video URLs.
     Filters out already processed URLs.
     """
     discovered: List[str] = []
     discovered_set: Set[str] = set(processed_urls)
 
+    # 1. Primary: Douyin video search
     for kw in keywords:
         if len(discovered) >= max_needed:
             break
 
-        # 1. Primary: Jina Search with no-content and X-Site
-        found = search_with_jina(kw, jina_api_key)
+        found = search_with_jina(kw, jina_api_key, site="douyin.com")
 
-        # 2. Backup: Firecrawl if Jina returned empty
         if not found and firecrawl_api_key:
             dork = f'site:douyin.com/video/ "{kw}"'
             found = search_with_firecrawl(dork, firecrawl_api_key)
@@ -195,9 +193,25 @@ def discover_video_urls(
             if u not in discovered_set:
                 discovered_set.add(u)
                 discovered.append(u)
-                logger.info("Found fresh candidate: %s", u)
+                logger.info("Found fresh candidate: [%s]", u)
                 if len(discovered) >= max_needed:
                     break
+
+    # 2. Supplemental: TikTok Dance Cover search fallback if needed
+    if len(discovered) < max_needed:
+        logger.info("Discovering supplemental TikTok dance cover candidates (current: %d/%d)...", len(discovered), max_needed)
+        tiktok_keywords = ["kpop dance cover", "trending dance choreo", "douyin dance challenge"]
+        for kw in tiktok_keywords:
+            if len(discovered) >= max_needed:
+                break
+            found_tt = search_with_jina(kw, jina_api_key, site="tiktok.com")
+            for u in found_tt:
+                if u not in discovered_set:
+                    discovered_set.add(u)
+                    discovered.append(u)
+                    logger.info("Found fresh candidate (TikTok): [%s]", u)
+                    if len(discovered) >= max_needed:
+                        break
 
     logger.info("Total fresh candidate URLs discovered: %d", len(discovered))
     return discovered

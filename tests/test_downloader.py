@@ -64,3 +64,10 @@ def test_parse_and_validate_cookies():
     assert parsed_kv is not None
     assert "kv_ttwid_777" in parsed_kv
     assert "kv_csrf_666" in parsed_kv
+
+
+def test_ensure_douyin_cookie_file_without_secret(tmp_path, monkeypatch):
+    from src.cookie_manager import ensure_douyin_cookie_file
+    monkeypatch.delenv("DOUYIN_COOKIES", raising=False)
+    res = ensure_douyin_cookie_file(tmp_path)
+    assert res is None
