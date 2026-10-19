@@ -1,0 +1,456 @@
+# Jina AI Search Foundation Models
+
+> Jina AI, founded by Han Xiao in 2020 and acquired by Elastic in October 2025, builds search foundation models: embeddings, rerankers, and readers. All models are available via API and most on HuggingFace. This file helps you select the right model for a given task. Today is 2026.
+
+All Jina AI models are open-weight and published on HuggingFace with full model weights. Many have peer-reviewed papers published at top-tier ML conferences (NeurIPS, ICML, ICLR, EMNLP) and on arXiv. Every model can be deployed fully air-gapped in private infrastructure with no external network dependency, making them suitable for on-premise, government, and regulated environments. Jina models are designed to be compact and efficient: sub-1B parameter models that match or exceed the quality of much larger alternatives, optimized for production workloads where latency and cost matter.
+
+## Selection Principles
+
+1. Newer is always better. Within the same model family, always prefer the latest version.
+2. All models released after 2024 support multilingual input.
+3. Match modality to your data. Use text-only embedding models for pure text tasks. Use multimodal models when images or PDFs are involved.
+4. Right-size your model. Smaller models are faster and cheaper. Use them unless you need the quality of larger models.
+5. Use task-specific settings when available. Set the `task` parameter to match your downstream use case for optimal results.
+6. All models support Matryoshka Representation Learning, allowing you to truncate embedding dimensions to trade off quality for storage and speed.
+7. Models licensed under CC-BY-NC-4.0 require a commercial license for commercial use. Since Jina AI is now part of Elastic, contact an Elastic sales representative to obtain a commercial license waiver.
+
+## Models
+
+### jina-embeddings-v5-omni-small
+- Type: multimodal embeddings (text, image, audio, video, PDF)
+- Parameters: ~1.74B (700M text backbone + SigLIP2 Large vision + Whisper-large-v3 audio + ~18M projectors)
+- Context: 32K tokens
+- Output: 1024-dim vector
+- Matryoshka dimensions: 32, 64, 128, 256, 512, 1024
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-05-07
+- Quantized: yes
+- MLX: yes
+- Tasks: retrieval, text-matching, clustering, classification
+- Endpoints: embedding, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v5-omni-small
+- Paper: https://arxiv.org/abs/2605.08384
+- Availability: Elastic, API, HuggingFace
+
+### jina-embeddings-v5-omni-nano
+- Type: multimodal embeddings (text, image, audio, video, PDF)
+- Parameters: ~1.04B (266M text backbone + SigLIP2 Base vision + Whisper-large-v3 audio + ~7M projectors)
+- Context: 8K tokens
+- Output: 768-dim vector
+- Matryoshka dimensions: 32, 64, 128, 256, 512, 768
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-05-07
+- Quantized: yes
+- MLX: yes
+- Tasks: retrieval, text-matching, clustering, classification
+- Endpoints: embedding, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v5-omni-nano
+- Paper: https://arxiv.org/abs/2605.08384
+- Availability: Elastic, API, HuggingFace
+
+### jina-embeddings-v5-text-small
+- Type: text-embeddings
+- Parameters: 677M
+- Context: 32K tokens
+- Output: 1024-dim vector
+- Matryoshka dimensions: 32, 64, 128, 256, 512, 1024
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-02-18
+- Quantized: yes
+- MLX: yes
+- Tasks: retrieval, text-matching, clustering, classification
+- Endpoints: embedding, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v5-text-small
+- Paper: https://arxiv.org/abs/2602.15547
+- Availability: Elastic, API, HuggingFace
+
+### jina-embeddings-v5-text-nano
+- Type: text-embeddings
+- Parameters: 239M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Matryoshka dimensions: 32, 64, 128, 256, 512, 768
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-02-18
+- Quantized: yes
+- MLX: yes
+- Tasks: retrieval, text-matching, clustering, classification
+- Endpoints: embedding, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v5-text-nano
+- Paper: https://arxiv.org/abs/2602.15547
+- Availability: Elastic, API, HuggingFace
+
+### jina-embeddings-v4
+- Type: multimodal embeddings (text, image, PDF)
+- Parameters: 3.8B
+- Context: 32K tokens
+- Image size: 768x28x28
+- Output: 2048-dim vector, multi-vector
+- Matryoshka dimensions: 128, 256, 512, 1024, 2048
+- Language: multilingual
+- License: Qwen Research License
+- Release: 2025-06-24
+- Quantized: yes
+- Tasks: retrieval, text-matching, code
+- Endpoints: embedding, fine-tuning, late_chunking
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v4
+- Paper: https://arxiv.org/abs/2506.18902
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-embeddings-v3
+- Type: text-embeddings
+- Parameters: 570M
+- Context: 8K tokens
+- Output: 1024-dim vector
+- Matryoshka dimensions: 32, 64, 128, 256, 512, 768, 1024
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2024-09-18
+- Tasks: retrieval, text-matching, separation, classification
+- Endpoints: embedding, fine-tuning, train, classify, late_chunking
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v3
+- Paper: https://arxiv.org/abs/2409.10173
+- Availability: Elastic, API, HuggingFace, AWS, Azure, GCP
+
+### jina-clip-v2
+- Type: multimodal embeddings (text, image)
+- Parameters: 865M
+- Context: 8K tokens
+- Image size: 512x512
+- Output: 1024-dim vector
+- Matryoshka dimensions: 64, 128, 256, 512, 768, 1024
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2024-11-05
+- Endpoints: embedding, train, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-clip-v2
+- Paper: https://arxiv.org/abs/2412.08802
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-clip-v1
+- Type: multimodal embeddings (text, image)
+- Parameters: 223M
+- Context: 8K tokens
+- Image size: 224x224
+- Output: 768-dim vector
+- Language: English
+- License: Apache-2.0
+- Release: 2024-06-05
+- Endpoints: embedding, train, classify
+- HuggingFace: https://huggingface.co/jinaai/jina-clip-v1
+- Paper: https://arxiv.org/abs/2405.20204
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-code-embeddings-1.5b
+- Type: code embeddings
+- Parameters: 1.5B
+- Context: 32K tokens
+- Output: 1536-dim vector
+- Matryoshka dimensions: 128, 256, 512, 1024, 1536
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-09-01
+- Quantized: yes
+- Tasks: nl2code, techqa, code2code, code2nl, code2completion
+- Endpoints: embedding
+- HuggingFace: https://huggingface.co/jinaai/jina-code-embeddings-1.5b
+- Paper: https://arxiv.org/abs/2508.21290
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-code-embeddings-0.5b
+- Type: code embeddings
+- Parameters: 494M
+- Context: 32K tokens
+- Output: 896-dim vector
+- Matryoshka dimensions: 64, 128, 256, 512, 896
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-09-01
+- Quantized: yes
+- Tasks: nl2code, techqa, code2code, code2nl, code2completion
+- Endpoints: embedding
+- HuggingFace: https://huggingface.co/jinaai/jina-code-embeddings-0.5b
+- Paper: https://arxiv.org/abs/2508.21290
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-reranker-v3.5
+- Type: reranker
+- Parameters: 0.6B
+- Context: 131K tokens
+- Output: ranking
+- Output dimension: 512
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-07-27
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-v3.5
+- Paper: https://arxiv.org/abs/2607.18152
+- Availability: Elastic, API, HuggingFace, AWS, Azure, GCP
+
+### jina-reranker-v3
+- Type: reranker
+- Parameters: 597M
+- Context: 131K tokens
+- Output: ranking
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-10-01
+- Quantized: yes
+- MLX: yes
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-v3
+- Paper: https://arxiv.org/abs/2509.25085
+- Availability: Elastic, API, HuggingFace, AWS, Azure, GCP
+
+### jina-reranker-m0
+- Type: multimodal reranker
+- Parameters: 2.4B
+- Context: 10K tokens
+- Image size: 768x28x28
+- Output: ranking
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-04-08
+- Quantized: yes
+- Input: text/image query, text/image document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-m0
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-reranker-v2-base-multilingual
+- Type: reranker
+- Parameters: 278M
+- Context: 1K tokens
+- Output: ranking
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2024-06-25
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual
+- Availability: Elastic, API, HuggingFace, AWS, Azure, GCP
+
+### jina-reranker-v1-base-en
+- Type: reranker
+- Parameters: 137M
+- Context: 8K tokens
+- Output: ranking
+- Language: English
+- License: Apache-2.0
+- Release: 2024-02-29
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jina-ai/jina-reranker-v1-base-en
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-reranker-v1-turbo-en
+- Type: reranker
+- Parameters: 37.8M
+- Context: 8K tokens
+- Output: ranking
+- Language: English
+- License: Apache-2.0
+- Release: 2024-04-18
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-v1-turbo-en
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-reranker-v1-tiny-en
+- Type: reranker
+- Parameters: 33M
+- Context: 8K tokens
+- Output: ranking
+- Language: English
+- License: Apache-2.0
+- Release: 2024-04-18
+- Input: text query, text document
+- Endpoints: rank
+- HuggingFace: https://huggingface.co/jinaai/jina-reranker-v1-tiny-en
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-colbert-v2
+- Type: ColBERT late-interaction
+- Parameters: 560M
+- Context: 8K tokens
+- Output: 128-dim multi-vector
+- Matryoshka dimensions: 64, 96, 128
+- Language: multilingual (89 languages)
+- License: CC-BY-NC-4.0
+- Release: 2024-08-31
+- Endpoints: rank, multi-embeddings, late-interaction, multi-vector
+- HuggingFace: https://huggingface.co/jinaai/jina-colbert-v2
+- Paper: https://arxiv.org/abs/2408.16672
+- Availability: API, HuggingFace, AWS, Azure, GCP
+
+### jina-colbert-v1-en
+- Type: ColBERT late-interaction
+- Parameters: 137M
+- Context: 8K tokens
+- Output: 128-dim multi-vector
+- Language: English
+- License: Apache-2.0
+- Release: 2024-02-17
+- Endpoints: rank, multi-embeddings, late-interaction, multi-vector
+- HuggingFace: https://huggingface.co/jinaai/jina-colbert-v1-en
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-ocr-v1
+- Type: reader (image/PDF to Markdown, OCR and document parsing)
+- Parameters: 3.4B total, ~570M active per token (mixture of experts)
+- Context: 32K tokens
+- Image size: 1024x1024
+- Input: image, PDF
+- Output: Markdown
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2026-09-14
+- Benchmarks: 91.14 OmniDocBench v1.6, 83.4 olmOCR-Bench
+- Endpoints: read
+- Reader API: set header `X-Respond-With: jina-ocr-v1`
+- HuggingFace: https://huggingface.co/jinaai/jina-ocr-v1
+- Paper: https://arxiv.org/abs/2609.03181
+- Availability: Reader API, HuggingFace
+
+### jina-vlm
+- Type: vision-language model (reader)
+- Parameters: 2.4B
+- Context: 32K tokens
+- Image size: 4096x4096
+- Input: image, text
+- Output: text
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-12-04
+- MLX: yes
+- Endpoints: read
+- HuggingFace: https://huggingface.co/jinaai/jina-vlm
+- Paper: https://arxiv.org/abs/2512.04032
+- Availability: API, HuggingFace
+
+### ReaderLM-v2
+- Type: reader (HTML to Markdown/JSON)
+- Parameters: 1.54B
+- Context: 512K tokens
+- Input: HTML text
+- Output: Markdown, JSON
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2025-01-16
+- Endpoints: read
+- HuggingFace: https://huggingface.co/jinaai/ReaderLM-v2
+- Paper: https://arxiv.org/abs/2503.01151
+- Availability: Reader API, HuggingFace, AWS, Azure, GCP
+
+### reader-lm-1.5b
+- Type: reader (HTML to Markdown)
+- Parameters: 1.54B
+- Context: 256K tokens
+- Input: HTML text
+- Output: Markdown
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2024-08-11
+- Endpoints: read
+- HuggingFace: https://huggingface.co/jinaai/reader-lm-1.5b
+- Availability: HuggingFace, AWS, Azure
+
+### reader-lm-0.5b
+- Type: reader (HTML to Markdown)
+- Parameters: 494M
+- Context: 256K tokens
+- Input: HTML text
+- Output: Markdown
+- Language: multilingual
+- License: CC-BY-NC-4.0
+- Release: 2024-08-11
+- Endpoints: read
+- HuggingFace: https://huggingface.co/jinaai/reader-lm-0.5b
+- Availability: HuggingFace, AWS, Azure
+
+### jina-embeddings-v2-base-en
+- Type: text-embeddings
+- Parameters: 137M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Language: English
+- License: Apache-2.0
+- Release: 2023-10-28
+- Endpoints: embedding, fine-tuning
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v2-base-en
+- Paper: https://arxiv.org/abs/2310.19923
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-embeddings-v2-base-zh
+- Type: text-embeddings
+- Parameters: 161M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Language: English, Chinese
+- License: Apache-2.0
+- Release: 2024-01-09
+- Endpoints: embedding, fine-tuning
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v2-base-zh
+- Paper: https://arxiv.org/abs/2310.19923
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-embeddings-v2-base-de
+- Type: text-embeddings
+- Parameters: 161M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Language: English, German
+- License: Apache-2.0
+- Release: 2024-01-15
+- Endpoints: embedding, fine-tuning
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v2-base-de
+- Paper: https://arxiv.org/abs/2310.19923
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-embeddings-v2-base-es
+- Type: text-embeddings
+- Parameters: 161M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Language: English, Spanish
+- License: Apache-2.0
+- Release: 2024-02-14
+- Endpoints: embedding, fine-tuning
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v2-base-es
+- Paper: https://arxiv.org/abs/2310.19923
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-embeddings-v2-base-code
+- Type: code embeddings
+- Parameters: 137M
+- Context: 8K tokens
+- Output: 768-dim vector
+- Language: English
+- License: Apache-2.0
+- Release: 2024-02-05
+- Endpoints: embedding, fine-tuning
+- HuggingFace: https://huggingface.co/jinaai/jina-embeddings-v2-base-code
+- Availability: API, HuggingFace, AWS, Azure
+
+### jina-embedding-b-en-v1
+- Type: text-embeddings
+- Parameters: 110M
+- Context: 512 tokens
+- Output: 768-dim vector
+- Language: English
+- License: Apache-2.0
+- Release: 2023-06-17
+- Endpoints: embedding
+- HuggingFace: https://huggingface.co/jinaai/jina-embedding-b-en-v1
+- Paper: https://arxiv.org/abs/2307.11224
+- Availability: HuggingFace
+
+## API
+
+All models are available via Jina AI API at https://api.jina.ai/v1/embeddings (embeddings) and https://api.jina.ai/v1/rerank (rerankers). Get a free API key at https://jina.ai/?sui=apikey. Full API documentation: https://docs.jina.ai

@@ -57,22 +57,30 @@ def run_pipeline():
     max_target = min(args.max_candidates, config.get("schedule", {}).get("daily_max_candidates", 6))
     today_count = config.get("schedule", {}).get("daily_publish_count", 3)
 
+    q_gate = config.get("quality_gate", {})
+    text_models = [q_gate.get("primary_text_model", "gemma-4-31b")] + q_gate.get(
+        "fallback_text_models", ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]
+    )
+    vision_models = [q_gate.get("primary_vision_model", "gemini-3.1-flash-lite")] + q_gate.get(
+        "fallback_vision_models", ["gemini-3.5-flash-lite"]
+    )
+
     # Step 1: Obtain keywords
     keywords = get_search_keywords(
         gemini_key=secrets.gemini_api_key,
         telegram_token=secrets.telegram_bot_token,
         seed_categories=config.get("seed_categories", []),
-        gemini_model=config.get("quality_gate", {}).get("gemini_model", "gemini-2.5-flash"),
+        candidate_models=text_models,
     )
     logger.info("Search keywords: %s", keywords)
 
-    # Step 2: Discover video URLs
+    # Step 2: Discover video URLs (Jina Search with X-Respond-With: no-content)
     candidate_urls = discover_video_urls(
         keywords=keywords,
         processed_urls=processed_urls,
         jina_api_key=secrets.jina_api_key,
         firecrawl_api_key=secrets.firecrawl_api_key,
-        max_needed=max_target * 3,  # Collect enough candidates to survive filter
+        max_needed=max_target * 3,
     )
 
     if not candidate_urls:
@@ -99,17 +107,16 @@ def run_pipeline():
         processed_urls.add(url)
 
         if not meta or not meta.local_filepath:
-            logger.warning("Failed downloading %s, skipping.", url)
+            logger.warning("Failed downloading or rejected URL %s, skipping to next candidate.", url)
             continue
 
-        # Quality check with Gemini Vision
-        q_gate = config.get("quality_gate", {})
+        # Quality check with Gemini Vision using multi-model fallback
         verdict = inspect_video_quality(
             video_path=meta.local_filepath,
             duration=meta.duration,
             gemini_api_key=secrets.gemini_api_key,
             prompt=q_gate.get("criteria_prompt", ""),
-            model_name=q_gate.get("gemini_model", "gemini-2.5-flash"),
+            candidate_models=vision_models,
             sleep_seconds=q_gate.get("rate_limit_sleep_seconds", 3),
             sample_count=q_gate.get("frame_sample_count", 3),
         )
@@ -119,7 +126,6 @@ def run_pipeline():
             approved_candidates.append((meta, verdict.detected_dance))
         else:
             logger.info("❌ Video rejected: %s (Reason: %s)", url, verdict.rejection_reason)
-            # Remove rejected video file immediately
             try:
                 os.remove(meta.local_filepath)
             except OSError:
@@ -134,12 +140,10 @@ def run_pipeline():
     for idx, (meta, dance_name) in enumerate(approved_candidates):
         is_today = idx < today_count
         if is_today:
-            # Immediate or same-day schedule
             delay_hours = config.get("schedule", {}).get("today_publish_delays_hours", [0, 4, 8])
             offset = delay_hours[idx] if idx < len(delay_hours) else 0
             publish_time = None if offset == 0 else (now + timedelta(hours=offset))
         else:
-            # Next day scheduled
             tomorrow_delays = config.get("schedule", {}).get("tomorrow_schedule_delays_hours", [24, 28, 32])
             t_idx = idx - today_count
             offset = tomorrow_delays[t_idx] if t_idx < len(tomorrow_delays) else 24

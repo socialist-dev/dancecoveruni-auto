@@ -35,3 +35,7 @@ token.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# Documentation
+README.md
+
