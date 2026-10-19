@@ -91,7 +91,7 @@ def run_pipeline():
         processed_urls=processed_urls,
         jina_api_key=secrets.jina_api_key,
         firecrawl_api_key=secrets.firecrawl_api_key,
-        max_needed=max_target * 3,
+        max_needed=max(60, max_target * 10),
     )
 
     if not candidate_urls:
@@ -113,13 +113,15 @@ def run_pipeline():
         if len(approved_candidates) >= max_target:
             break
 
-        logger.info("Processing URL (%d/%d approved): %s", len(approved_candidates), max_target, url)
+        logger.info("Processing URL (%d/%d approved): [%s]", len(approved_candidates), max_target, url)
         meta = download_video(url, download_dir)
-        processed_urls.add(url)
 
         if not meta or not meta.local_filepath:
-            logger.warning("Failed downloading or rejected URL %s, skipping to next candidate.", url)
+            logger.warning("Failed downloading or rejected URL [%s], skipping to next candidate.", url)
             continue
+
+        # Record into history only when media was successfully downloaded
+        processed_urls.add(url)
 
         # Quality check with Gemini Vision using multi-model fallback
         verdict = inspect_video_quality(
@@ -133,10 +135,10 @@ def run_pipeline():
         )
 
         if verdict.overall_pass:
-            logger.info("✅ Video approved: %s (Dance: %s)", url, verdict.detected_dance)
+            logger.info("✅ Video approved: [%s] (Dance: %s)", url, verdict.detected_dance)
             approved_candidates.append((meta, verdict.detected_dance))
         else:
-            logger.info("❌ Video rejected: %s (Reason: %s)", url, verdict.rejection_reason)
+            logger.info("❌ Video rejected: [%s] (Reason: %s)", url, verdict.rejection_reason)
             try:
                 os.remove(meta.local_filepath)
             except OSError:

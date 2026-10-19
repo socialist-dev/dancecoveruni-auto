@@ -72,6 +72,96 @@ def fetch_douyin_guest_cookies() -> Dict[str, str]:
     return cookies
 
 
+def parse_and_validate_cookies(raw_text: str) -> Optional[str]:
+    """
+    Parses arbitrary cookie representations into a valid Netscape HTTP Cookie format:
+    1. Standard Netscape tab-separated format (with or without # Netscape header).
+    2. JSON array exported from browser extensions (e.g. EditThisCookie, Cookie-Editor).
+    3. Semicolon-separated key=value strings (e.g. from browser document.cookie or request headers).
+    """
+    if not raw_text or not raw_text.strip():
+        return None
+
+    cleaned_raw = raw_text.strip()
+    valid_lines = []
+    found_tokens = []
+    KEY_TOKENS = ["ttwid", "passport_csrf_token", "__ac_nonce", "odin_tt", "sessionid", "sid_guard", "passport_auth_status"]
+
+    # --- Mode 1: JSON format (starts with '[' or '{') ---
+    if cleaned_raw.startswith("[") or cleaned_raw.startswith("{"):
+        try:
+            import json
+            data = json.loads(cleaned_raw)
+            if isinstance(data, dict):
+                data = [data]
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        name = item.get("name")
+                        val = item.get("value")
+                        if not name or val is None:
+                            continue
+                        domain = item.get("domain") or ".douyin.com"
+                        flag = "TRUE" if domain.startswith(".") else "FALSE"
+                        path = item.get("path") or "/"
+                        secure = "TRUE" if item.get("secure") else "FALSE"
+                        expires = int(item.get("expirationDate") or item.get("expires") or (time.time() + 86400 * 30))
+                        valid_lines.append(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{val}")
+                        if name in KEY_TOKENS:
+                            found_tokens.append(name)
+                if valid_lines:
+                    logger.info("Parsed %d cookies from JSON format. Key tokens detected: %s", len(valid_lines), list(set(found_tokens)))
+                    return "# Netscape HTTP Cookie File\n\n" + "\n".join(valid_lines) + "\n"
+        except Exception as e:
+            logger.debug("Failed parsing DOUYIN_COOKIES as JSON (%s), falling back...", e)
+
+    # --- Mode 2: Netscape format (tab-separated) ---
+    if "\t" in cleaned_raw:
+        lines = cleaned_raw.splitlines()
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("#"):
+                valid_lines.append(stripped)
+                continue
+            parts = stripped.split("\t")
+            if len(parts) >= 7:
+                valid_lines.append(stripped)
+                c_name = parts[5]
+                if c_name in KEY_TOKENS:
+                    found_tokens.append(c_name)
+            elif len(parts) >= 6:
+                # Add default secure flag if missing
+                valid_lines.append(stripped)
+
+        if valid_lines:
+            header_exists = any("Netscape HTTP Cookie File" in l for l in valid_lines[:3])
+            content = ("" if header_exists else "# Netscape HTTP Cookie File\n\n") + "\n".join(valid_lines) + "\n"
+            logger.info("Parsed %d Netscape cookie lines. Key tokens detected: %s", len(valid_lines), list(set(found_tokens)))
+            return content
+
+    # --- Mode 3: Semicolon-separated key=value format ---
+    cookie_dict = {}
+    for item in cleaned_raw.split(";"):
+        if "=" in item:
+            k, v = item.strip().split("=", 1)
+            k_clean = k.strip()
+            v_clean = v.strip()
+            if k_clean and v_clean:
+                cookie_dict[k_clean] = v_clean
+                if k_clean in KEY_TOKENS:
+                    found_tokens.append(k_clean)
+
+    if cookie_dict:
+        content = generate_netscape_cookie_content(cookie_dict)
+        logger.info("Parsed %d key-value cookies. Key tokens detected: %s", len(cookie_dict), list(set(found_tokens)))
+        return content
+
+    logger.warning("DOUYIN_COOKIES present but could not parse any valid cookie entries.")
+    return None
+
+
 def ensure_douyin_cookie_file(output_dir: Path, force_refresh: bool = False) -> Optional[Path]:
     """
     Ensures a valid Netscape cookie file exists in output_dir.
@@ -80,35 +170,29 @@ def ensure_douyin_cookie_file(output_dir: Path, force_refresh: bool = False) -> 
     output_dir.mkdir(parents=True, exist_ok=True)
     cookie_path = output_dir / "douyin_cookies.txt"
 
+    # 1. Check if user provided cookies via env
+    raw_env_cookies = os.getenv("DOUYIN_COOKIES")
+    if raw_env_cookies and raw_env_cookies.strip():
+        logger.info("DOUYIN_COOKIES environment variable detected (%d characters). Parsing...", len(raw_env_cookies))
+        parsed_content = parse_and_validate_cookies(raw_env_cookies)
+        if parsed_content:
+            cookie_path.write_text(parsed_content, encoding="utf-8")
+            logger.info("Successfully wrote %d bytes to cookie file: %s", cookie_path.stat().st_size, cookie_path)
+            return cookie_path
+        else:
+            logger.warning("Could not parse DOUYIN_COOKIES secret! Falling back to guest cookie generator.")
+
     if cookie_path.exists() and not force_refresh:
-        # Check if file has content
         if cookie_path.stat().st_size > 50:
             return cookie_path
 
-    # 1. Check if user provided raw Netscape cookies or cookie string via env
-    raw_env_cookies = os.getenv("DOUYIN_COOKIES")
-    if raw_env_cookies:
-        logger.info("Using DOUYIN_COOKIES provided via environment variable.")
-        if "# Netscape" in raw_env_cookies:
-            cookie_path.write_text(raw_env_cookies, encoding="utf-8")
-        else:
-            # Parse key=val; format
-            cookie_dict = {}
-            for item in raw_env_cookies.split(";"):
-                if "=" in item:
-                    k, v = item.strip().split("=", 1)
-                    cookie_dict[k.strip()] = v.strip()
-            content = generate_netscape_cookie_content(cookie_dict)
-            cookie_path.write_text(content, encoding="utf-8")
-        return cookie_path
-
-    # 2. Automatically generate guest cookies
+    # 2. Automatically generate guest cookies if env not provided
     logger.info("Auto-generating fresh Douyin guest cookies...")
     cookies = fetch_douyin_guest_cookies()
     if cookies:
         content = generate_netscape_cookie_content(cookies)
         cookie_path.write_text(content, encoding="utf-8")
-        logger.info("Wrote fresh Netscape cookies to: %s", cookie_path)
+        logger.info("Wrote fresh guest Netscape cookies to: %s (%d bytes)", cookie_path, cookie_path.stat().st_size)
         return cookie_path
 
     logger.warning("Could not obtain Douyin guest cookies; cookie file may be empty.")

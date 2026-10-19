@@ -64,7 +64,7 @@ def download_with_ytdlp(url: str, output_dir: Path, cookie_file: Optional[Path])
         ydl_opts["cookiefile"] = str(cookie_file)
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        logger.info("yt-dlp attempting download: %s (cookiefile=%s)", url, bool(cookie_file))
+        logger.info("yt-dlp attempting download for URL [%s] (cookiefile=%s)", url, bool(cookie_file))
         info = ydl.extract_info(url, download=True)
         if not info:
             return None
@@ -162,7 +162,7 @@ def download_video(url: str, output_dir: Path, max_retries: int = 2) -> Optional
     """
     clean_url = sanitize_url(url)
     if not is_valid_download_url(clean_url):
-        logger.warning("Rejected non-canonical video URL: %s", url)
+        logger.warning("Rejected non-canonical video URL [%s]", url)
         return None
     url = clean_url
 
@@ -176,16 +176,16 @@ def download_video(url: str, output_dir: Path, max_retries: int = 2) -> Optional
                 return result
         except Exception as e:
             err_msg = str(e)
-            logger.warning("yt-dlp attempt %d/%d failed for %s: %s", attempt, max_retries, url, err_msg)
+            logger.warning("yt-dlp attempt %d/%d failed for URL [%s] | Error: %s", attempt, max_retries, url, err_msg)
             if "cookies" in err_msg.lower() or "403" in err_msg or "login" in err_msg.lower():
                 logger.info("Cookie issue detected; refreshing Douyin guest cookies for next attempt...")
                 cookie_file = ensure_douyin_cookie_file(output_dir, force_refresh=True)
 
     # Secondary layer fallback
-    logger.info("yt-dlp failed after %d attempts; trying direct API fallback for %s...", max_retries, url)
+    logger.info("yt-dlp failed after %d attempts; trying direct API fallback for URL [%s]...", max_retries, url)
     api_result = download_with_direct_douyin_api(url, output_dir)
     if api_result:
         return api_result
 
-    logger.warning("All download methods failed for URL: %s", url)
+    logger.warning("All download methods failed for URL [%s]", url)
     return None
