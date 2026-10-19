@@ -65,6 +65,17 @@ def run_pipeline():
         "fallback_vision_models", ["gemini-3.5-flash-lite"]
     )
 
+    # Step 0: Immediate Telegram Startup Ping to verify connection
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    startup_msg = (
+        "🚀 <b>[DanceCoverUni] Khởi động pipeline & Kiểm tra kết nối Telegram thành công!</b>\n\n"
+        f"📅 <b>Thời gian:</b> {now_str}\n"
+        f"🤖 <b>AI Text Model:</b> {text_models[0]}\n"
+        f"👁️ <b>AI Vision Model:</b> {vision_models[0]}\n"
+        f"🎯 <b>Chế độ:</b> {'DRY-RUN (Thử nghiệm)' if args.dry_run else 'PRODUCTION (Tự động)'}"
+    )
+    send_telegram_message(secrets.telegram_bot_token, secrets.telegram_chat_id, startup_msg)
+
     # Step 1: Obtain keywords
     keywords = get_search_keywords(
         gemini_key=secrets.gemini_api_key,
