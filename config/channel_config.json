@@ -1,0 +1,44 @@
+{
+  "channel": {
+    "name": "Dance Cover Universe",
+    "category_id": "24",
+    "default_language": "vi"
+  },
+  "metadata_templates": {
+    "title_template": "{detected_dance} Dance Cover #Shorts",
+    "description_template": "🔥 Amazing dance cover performance!\n\n🎵 Dance/Choreo: {detected_dance}\n👤 Creator Credit: {author_name} (ID: {author_id})\n🔗 Original Video: {original_url}\n\n#Shorts #DanceCover #DouyinDance #DanceChallenge #Choreography\n\n📌 All rights belong to the original creators and artists. For credit or video removal inquiries, please contact us.",
+    "tags": [
+      "dance cover",
+      "shorts",
+      "douyin dance",
+      "tiktok dance",
+      "dance challenge",
+      "kpop dance",
+      "cpop dance",
+      "choreography",
+      "street dance",
+      "dance performance"
+    ]
+  },
+  "schedule": {
+    "daily_max_candidates": 6,
+    "daily_publish_count": 3,
+    "schedule_next_day_count": 3,
+    "today_publish_delays_hours": [0, 4, 8],
+    "tomorrow_schedule_delays_hours": [24, 28, 32]
+  },
+  "quality_gate": {
+    "gemini_model": "gemini-2.5-flash",
+    "rate_limit_sleep_seconds": 3,
+    "frame_sample_count": 3,
+    "criteria_prompt": "You are a professional video quality judge for a Dance Cover YouTube channel. Inspect the provided frames extracted from a single vertical short video. Determine if this video qualifies as a high-quality dance cover:\n1. Is it an active dance cover / choreography performance by one or more people?\n2. Is it a real video (NOT a static image, talking head, slideshow, meme, or podcast)?\n3. Is the main performer clearly visible without massive intrusive watermarks completely covering their body?\n4. Is it safe for all audiences (strictly NO nudity, explicit sexual gestures, violence, or hate symbols)?\n\nReturn strict JSON format with boolean fields:\n{\n  \"is_dance_cover\": boolean,\n  \"has_dancer\": boolean,\n  \"is_safe\": boolean,\n  \"no_blocking_watermark\": boolean,\n  \"overall_pass\": boolean,\n  \"detected_dance\": string,\n  \"rejection_reason\": string\n}"
+  },
+  "seed_categories": [
+    "Kpop dance cover",
+    "Douyin hot dance",
+    "Street dance choreo",
+    "Jazz funk dance",
+    "Cpop choreography",
+    "Dance challenge trend"
+  ]
+}

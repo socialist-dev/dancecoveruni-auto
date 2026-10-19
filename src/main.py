@@ -1,0 +1,200 @@
+import os
+import sys
+import argparse
+import logging
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import List
+
+from .config_loader import (
+    load_config,
+    load_env_secrets,
+    load_history,
+    save_history,
+    VideoMetadata,
+)
+from .ai_keywords import get_search_keywords
+from .searcher import discover_video_urls
+from .downloader import download_video
+from .quality_checker import inspect_video_quality
+from .telegram_notifier import send_telegram_message, send_telegram_video_backup
+from .youtube_uploader import upload_youtube_shorts
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("dancecoveruni.main")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Dance Cover Universe YouTube Shorts Automation")
+    parser.add_argument("--dry-run", action="store_true", help="Simulate pipeline without actual upload")
+    parser.add_argument("--max-candidates", type=int, default=6, help="Target number of approved videos (max 6)")
+    return parser.parse_args()
+
+
+def format_metadata(template_str: str, meta: VideoMetadata, detected_dance: str) -> str:
+    """Replaces placeholders in metadata templates."""
+    return template_str.format(
+        detected_dance=detected_dance,
+        author_name=meta.author_name,
+        author_id=meta.author_id,
+        original_url=meta.url,
+        video_title=meta.title,
+    )
+
+
+def run_pipeline():
+    args = parse_args()
+    logger.info("Starting Dance Cover Universe Pipeline (dry_run=%s)", args.dry_run)
+
+    config = load_config()
+    secrets = load_env_secrets()
+    history = load_history()
+
+    processed_urls = set(history.get("processed_urls", []))
+    max_target = min(args.max_candidates, config.get("schedule", {}).get("daily_max_candidates", 6))
+    today_count = config.get("schedule", {}).get("daily_publish_count", 3)
+
+    # Step 1: Obtain keywords
+    keywords = get_search_keywords(
+        gemini_key=secrets.gemini_api_key,
+        telegram_token=secrets.telegram_bot_token,
+        seed_categories=config.get("seed_categories", []),
+        gemini_model=config.get("quality_gate", {}).get("gemini_model", "gemini-2.5-flash"),
+    )
+    logger.info("Search keywords: %s", keywords)
+
+    # Step 2: Discover video URLs
+    candidate_urls = discover_video_urls(
+        keywords=keywords,
+        processed_urls=processed_urls,
+        jina_api_key=secrets.jina_api_key,
+        firecrawl_api_key=secrets.firecrawl_api_key,
+        max_needed=max_target * 3,  # Collect enough candidates to survive filter
+    )
+
+    if not candidate_urls:
+        logger.warning("No new video URLs found. Exiting gracefully.")
+        send_telegram_message(
+            secrets.telegram_bot_token,
+            secrets.telegram_chat_id,
+            "ℹ️ <b>[DanceCoverUni]</b> Pipeline finished: No new video URLs found today.",
+        )
+        return
+
+    # Step 3: Download & Quality Assessment Loop
+    download_dir = Path(__file__).resolve().parent.parent / "downloads"
+    download_dir.mkdir(parents=True, exist_ok=True)
+
+    approved_candidates: List[tuple[VideoMetadata, str]] = []
+
+    for url in candidate_urls:
+        if len(approved_candidates) >= max_target:
+            break
+
+        logger.info("Processing URL (%d/%d approved): %s", len(approved_candidates), max_target, url)
+        meta = download_video(url, download_dir)
+        processed_urls.add(url)
+
+        if not meta or not meta.local_filepath:
+            logger.warning("Failed downloading %s, skipping.", url)
+            continue
+
+        # Quality check with Gemini Vision
+        q_gate = config.get("quality_gate", {})
+        verdict = inspect_video_quality(
+            video_path=meta.local_filepath,
+            duration=meta.duration,
+            gemini_api_key=secrets.gemini_api_key,
+            prompt=q_gate.get("criteria_prompt", ""),
+            model_name=q_gate.get("gemini_model", "gemini-2.5-flash"),
+            sleep_seconds=q_gate.get("rate_limit_sleep_seconds", 3),
+            sample_count=q_gate.get("frame_sample_count", 3),
+        )
+
+        if verdict.overall_pass:
+            logger.info("✅ Video approved: %s (Dance: %s)", url, verdict.detected_dance)
+            approved_candidates.append((meta, verdict.detected_dance))
+        else:
+            logger.info("❌ Video rejected: %s (Reason: %s)", url, verdict.rejection_reason)
+            # Remove rejected video file immediately
+            try:
+                os.remove(meta.local_filepath)
+            except OSError:
+                pass
+
+    logger.info("Total approved videos ready for distribution: %d", len(approved_candidates))
+
+    # Step 4: Upload & Distribution
+    now = datetime.now(timezone.utc)
+    uploaded_entries = history.get("uploaded_videos", [])
+
+    for idx, (meta, dance_name) in enumerate(approved_candidates):
+        is_today = idx < today_count
+        if is_today:
+            # Immediate or same-day schedule
+            delay_hours = config.get("schedule", {}).get("today_publish_delays_hours", [0, 4, 8])
+            offset = delay_hours[idx] if idx < len(delay_hours) else 0
+            publish_time = None if offset == 0 else (now + timedelta(hours=offset))
+        else:
+            # Next day scheduled
+            tomorrow_delays = config.get("schedule", {}).get("tomorrow_schedule_delays_hours", [24, 28, 32])
+            t_idx = idx - today_count
+            offset = tomorrow_delays[t_idx] if t_idx < len(tomorrow_delays) else 24
+            publish_time = now + timedelta(hours=offset)
+
+        title = format_metadata(config["metadata_templates"]["title_template"], meta, dance_name)
+        desc = format_metadata(config["metadata_templates"]["description_template"], meta, dance_name)
+        tags = config["metadata_templates"].get("tags", [])
+
+        # Send Telegram Backup
+        tg_caption = f"📹 <b>New Dance Cover</b>\n\n<b>Title:</b> {title}\n<b>Author:</b> {meta.author_name}\n<b>Schedule:</b> {'Today (Public)' if is_today else f'Tomorrow ({publish_time})'}\n<b>Source:</b> {meta.url}"
+        send_telegram_video_backup(
+            bot_token=secrets.telegram_bot_token,
+            chat_id=secrets.telegram_chat_id,
+            video_path=meta.local_filepath,
+            caption=tg_caption,
+        )
+
+        # Upload to YouTube
+        yt_id = upload_youtube_shorts(
+            client_id=secrets.youtube_client_id,
+            client_secret=secrets.youtube_client_secret,
+            refresh_token=secrets.youtube_refresh_token,
+            video_filepath=meta.local_filepath,
+            title=title,
+            description=desc,
+            tags=tags,
+            category_id=config["channel"].get("category_id", "24"),
+            publish_at=publish_time,
+            dry_run=args.dry_run,
+        )
+
+        if yt_id:
+            uploaded_entries.append({
+                "youtube_id": yt_id,
+                "title": title,
+                "douyin_url": meta.url,
+                "published_at": publish_time.isoformat() if publish_time else now.isoformat(),
+                "status": "scheduled" if publish_time else "public",
+                "processed_time": now.isoformat(),
+            })
+
+        # Remove local file after processing
+        try:
+            os.remove(meta.local_filepath)
+        except OSError:
+            pass
+
+    # Step 5: Save State
+    history["last_updated"] = now.isoformat()
+    history["processed_urls"] = list(processed_urls)
+    history["uploaded_videos"] = uploaded_entries
+    save_history(history)
+    logger.info("Pipeline execution completed successfully. State saved.")
+
+
+if __name__ == "__main__":
+    run_pipeline()
