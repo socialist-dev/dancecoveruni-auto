@@ -12,25 +12,53 @@ CANONICAL_DOUYIN_REGEX = re.compile(r"https?://(?:www\.)?douyin\.com/video/(\d{1
 CANONICAL_TIKTOK_REGEX = re.compile(r"https?://(?:www\.)?tiktok\.com/@[^/\s?#]+/video/(\d{15,25})")
 
 
+# Short Douyin regex (v.douyin.com)
+DOUYIN_SHORT_REGEX = re.compile(r"https?://v\.douyin\.com/[a-zA-Z0-9_-]+/?")
+
+
+def resolve_short_link(short_url: str) -> Optional[str]:
+    """Resolves short redirect links like https://v.douyin.com/xxx/ to full canonical URL."""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+        }
+        resp = requests.head(short_url, headers=headers, allow_redirects=True, timeout=8)
+        if resp.url and "douyin.com/video/" in resp.url:
+            return resp.url
+    except Exception as e:
+        logger.debug("Failed resolving short link %s: %s", short_url, e)
+    return None
+
+
 def canonicalize_url(raw_url: str) -> Optional[str]:
     """
     Normalizes a video URL to the cleanest canonical format:
     e.g. 'https://www.douyin.com/video/7391234567890123456'
-    Strips away query parameters, trackers, and rejects non-video links.
+    Strips away trailing punctuation (.,:;…!?'\"/), whitespace, query parameters, trackers,
+    resolves short links, and rejects non-video links.
     """
     if not raw_url:
         return None
 
+    # Strip whitespace and trailing punctuation like '...', '…', '.', ',', ':', ';', '!', '?'
+    cleaned = raw_url.strip().rstrip(".,:;…!?'\"/) \t\n")
+
+    # If it's a short link like v.douyin.com/xxx/
+    if "v.douyin.com" in cleaned:
+        resolved = resolve_short_link(cleaned)
+        if resolved:
+            cleaned = resolved
+
     # Check Douyin
-    douyin_match = CANONICAL_DOUYIN_REGEX.search(raw_url)
+    douyin_match = CANONICAL_DOUYIN_REGEX.search(cleaned)
     if douyin_match:
         video_id = douyin_match.group(1)
         return f"https://www.douyin.com/video/{video_id}"
 
     # Check TikTok
-    tiktok_match = CANONICAL_TIKTOK_REGEX.search(raw_url)
+    tiktok_match = CANONICAL_TIKTOK_REGEX.search(cleaned)
     if tiktok_match:
-        return tiktok_match.group(0).split("?")[0]
+        return tiktok_match.group(0).split("?")[0].rstrip(".,:;…!?'\"/) \t\n")
 
     return None
 
@@ -47,8 +75,15 @@ def extract_video_urls_from_text(text: str) -> List[str]:
             urls.append(canonical)
 
     for match in CANONICAL_TIKTOK_REGEX.finditer(text):
-        canonical = match.group(0).split("?")[0]
+        canonical = match.group(0).split("?")[0].rstrip(".,:;…!?'\"/) \t\n")
         if canonical not in seen:
+            seen.add(canonical)
+            urls.append(canonical)
+
+    for match in DOUYIN_SHORT_REGEX.finditer(text):
+        short_url = match.group(0)
+        canonical = canonicalize_url(short_url)
+        if canonical and canonical not in seen:
             seen.add(canonical)
             urls.append(canonical)
 

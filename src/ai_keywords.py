@@ -57,6 +57,27 @@ def fetch_telegram_manual_keywords(bot_token: Optional[str]) -> List[str]:
         return []
 
 
+def filter_available_models(client, candidate_models: List[str]) -> List[str]:
+    """
+    Queries client.models.list() to filter out models that are unavailable or 404
+    for the current API key, keeping only valid models in preference order.
+    """
+    try:
+        available_names = set()
+        for m in client.models.list():
+            name = m.name.replace("models/", "") if hasattr(m, "name") and m.name else ""
+            if name:
+                available_names.add(name)
+        if available_names:
+            matched = [m for m in candidate_models if m in available_names or f"models/{m}" in available_names]
+            if matched:
+                logger.info("Verified active models via API: %s", matched)
+                return matched
+    except Exception as e:
+        logger.debug("Could not query client.models.list() (%s); using original candidates.", e)
+    return candidate_models
+
+
 def generate_chinese_keywords_with_gemini(
     api_key: Optional[str],
     seed_categories: List[str],
@@ -64,14 +85,14 @@ def generate_chinese_keywords_with_gemini(
 ) -> List[str]:
     """
     Generates trending Chinese dance search keywords.
-    Tries candidate models sequentially (e.g. gemma-4-31b -> gemini-3.1-flash-lite -> gemini-3.5-flash-lite).
+    Tries candidate models sequentially (e.g. gemini-3.1-flash-lite -> gemini-3.5-flash-lite).
     """
     if not api_key:
         logger.info("No GEMINI_API_KEY provided; utilizing fallback curated keywords.")
         return FALLBACK_KEYWORDS
 
     if not candidate_models:
-        candidate_models = ["gemma-4-31b", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]
+        candidate_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
 
     prompt = (
         f"Categories: {', '.join(seed_categories)}.\n"
@@ -82,8 +103,9 @@ def generate_chinese_keywords_with_gemini(
 
     from google import genai
     client = genai.Client(api_key=api_key)
+    active_candidates = filter_available_models(client, candidate_models)
 
-    for model_name in candidate_models:
+    for model_name in active_candidates:
         try:
             logger.info("Attempting keyword generation using model '%s'...", model_name)
             response = client.models.generate_content(

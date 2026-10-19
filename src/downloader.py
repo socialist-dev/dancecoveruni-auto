@@ -14,16 +14,30 @@ VALID_DOUYIN_PATTERN = re.compile(r"^https://www\.douyin\.com/video/(\d+)$")
 VALID_TIKTOK_PATTERN = re.compile(r"^https://www\.tiktok\.com/@[^/]+/video/(\d+)$")
 
 
+def sanitize_url(url: str) -> str:
+    """Strips trailing punctuation, query strings, and whitespace, recovering canonical URL."""
+    if not url:
+        return ""
+    cleaned = url.strip().rstrip(".,:;…!?'\"/) \t\n")
+    m = re.search(r"douyin\.com/video/(\d{15,25})", cleaned)
+    if m:
+        return f"https://www.douyin.com/video/{m.group(1)}"
+    m_tk = re.search(r"tiktok\.com/@[^/\s?#]+/video/(\d{15,25})", cleaned)
+    if m_tk:
+        return m_tk.group(0).split("?")[0].rstrip(".,:;…!?'\"/) \t\n")
+    return cleaned
+
+
 def is_valid_download_url(url: str) -> bool:
     """Checks whether the URL is in a strict canonical video format."""
-    if not url:
-        return False
-    return bool(VALID_DOUYIN_PATTERN.match(url) or VALID_TIKTOK_PATTERN.match(url))
+    clean = sanitize_url(url)
+    return bool(VALID_DOUYIN_PATTERN.match(clean) or VALID_TIKTOK_PATTERN.match(clean))
 
 
 def extract_video_id(url: str) -> Optional[str]:
     """Extracts numeric video ID from canonical Douyin/TikTok URL."""
-    m = VALID_DOUYIN_PATTERN.match(url) or VALID_TIKTOK_PATTERN.match(url)
+    clean = sanitize_url(url)
+    m = VALID_DOUYIN_PATTERN.match(clean) or VALID_TIKTOK_PATTERN.match(clean)
     return m.group(1) if m else None
 
 
@@ -146,9 +160,11 @@ def download_video(url: str, output_dir: Path, max_retries: int = 2) -> Optional
     Downloads video using yt-dlp with automatic guest cookie management and retry logic.
     Falls back to direct API if yt-dlp cannot extract the stream.
     """
-    if not is_valid_download_url(url):
+    clean_url = sanitize_url(url)
+    if not is_valid_download_url(clean_url):
         logger.warning("Rejected non-canonical video URL: %s", url)
         return None
+    url = clean_url
 
     output_dir.mkdir(parents=True, exist_ok=True)
     cookie_file = ensure_douyin_cookie_file(output_dir)

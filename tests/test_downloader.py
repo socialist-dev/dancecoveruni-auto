@@ -7,9 +7,22 @@ def test_url_validation():
     assert is_valid_download_url("https://www.douyin.com/video/7391234567890123456")
     assert extract_video_id("https://www.douyin.com/video/7391234567890123456") == "7391234567890123456"
 
+    # Douyin with trailing punctuation and query params
+    assert is_valid_download_url("https://www.douyin.com/video/7391234567890123456...")
+    assert extract_video_id("https://www.douyin.com/video/7391234567890123456...") == "7391234567890123456"
+
+    assert is_valid_download_url("https://www.douyin.com/video/7391234567890123456,")
+    assert extract_video_id("https://www.douyin.com/video/7391234567890123456,") == "7391234567890123456"
+
+    assert is_valid_download_url("https://www.douyin.com/video/7391234567890123456?modal_id=123")
+    assert extract_video_id("https://www.douyin.com/video/7391234567890123456?modal_id=123") == "7391234567890123456"
+
     # Valid TikTok canonical
     assert is_valid_download_url("https://www.tiktok.com/@dancer/video/7123456789012345678")
     assert extract_video_id("https://www.tiktok.com/@dancer/video/7123456789012345678") == "7123456789012345678"
+
+    assert is_valid_download_url("https://www.tiktok.com/@dancer/video/7123456789012345678...")
+    assert extract_video_id("https://www.tiktok.com/@dancer/video/7123456789012345678...") == "7123456789012345678"
 
     # Invalid non-video URLs
     assert not is_valid_download_url("https://www.douyin.com/user/12345")

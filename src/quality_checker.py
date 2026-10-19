@@ -90,12 +90,15 @@ def inspect_video_quality(
     try:
         from google import genai
         from PIL import Image
+        from .ai_keywords import filter_available_models
 
         client = genai.Client(api_key=gemini_api_key)
         images = [Image.open(f) for f in frame_files]
         contents = [prompt] + images
 
-        for model_name in candidate_models:
+        active_candidates = filter_available_models(client, candidate_models)
+
+        for model_name in active_candidates:
             try:
                 logger.info("Sending %d frames to Vision model '%s' for evaluation...", len(images), model_name)
                 response = client.models.generate_content(

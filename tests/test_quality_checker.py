@@ -2,11 +2,29 @@ from src.searcher import canonicalize_url, extract_video_urls_from_text
 
 
 def test_canonicalize_url():
-    # Valid Douyin
+    # Valid Douyin with query param
     assert (
         canonicalize_url("https://www.douyin.com/video/7391234567890123456?modal_id=123")
         == "https://www.douyin.com/video/7391234567890123456"
     )
+    # Douyin URL with trailing characters: dots, comma, ellipsis, slash
+    assert (
+        canonicalize_url("https://www.douyin.com/video/7391234567890123456...")
+        == "https://www.douyin.com/video/7391234567890123456"
+    )
+    assert (
+        canonicalize_url("https://www.douyin.com/video/7391234567890123456,")
+        == "https://www.douyin.com/video/7391234567890123456"
+    )
+    assert (
+        canonicalize_url("https://www.douyin.com/video/7391234567890123456.")
+        == "https://www.douyin.com/video/7391234567890123456"
+    )
+    assert (
+        canonicalize_url("https://www.douyin.com/video/7391234567890123456/")
+        == "https://www.douyin.com/video/7391234567890123456"
+    )
+
     # Non-video link rejected
     assert canonicalize_url("https://www.douyin.com/user/MS4wLjABAAAA") is None
     assert canonicalize_url("https://www.douyin.com/search/dance") is None
@@ -14,6 +32,10 @@ def test_canonicalize_url():
     # Valid TikTok
     assert (
         canonicalize_url("https://www.tiktok.com/@bestdancer/video/7123456789012345678?is_from_webapp=1")
+        == "https://www.tiktok.com/@bestdancer/video/7123456789012345678"
+    )
+    assert (
+        canonicalize_url("https://www.tiktok.com/@bestdancer/video/7123456789012345678...")
         == "https://www.tiktok.com/@bestdancer/video/7123456789012345678"
     )
 
