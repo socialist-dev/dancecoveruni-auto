@@ -1,5 +1,16 @@
-from src.downloader import is_valid_download_url, extract_video_id
+from src.downloader import is_valid_download_url, extract_video_id, sign_douyin_query
 from src.cookie_manager import generate_netscape_cookie_content, parse_and_validate_cookies
+
+
+def test_douyin_signing():
+    query = {"aweme_id": "7391234567890123456"}
+    uifid = "test_uifid_123"
+    signed = sign_douyin_query(query, uifid)
+    assert "x-secsdk-web-signature" in signed
+    assert signed["aweme_id"] == "7391234567890123456"
+    assert signed["uifid"] == "test_uifid_123"
+    assert "timestamp" in signed
+    assert len(signed["x-secsdk-web-signature"]) == 32
 
 
 def test_url_validation():

@@ -72,3 +72,43 @@ def send_telegram_video_backup(
         logger.warning("Failed uploading video to Telegram: %s", e)
 
     return False
+
+
+def send_pipeline_summary(
+    bot_token: Optional[str],
+    chat_id: Optional[str],
+    jina_tokens: int,
+    total_scraped: int,
+    total_fresh: int,
+    total_downloaded: int,
+    total_approved: int,
+    total_rejected: int,
+    today_published: int,
+    tomorrow_scheduled: int,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Sends an executive summary of the pipeline execution to Telegram.
+    Includes Jina API token consumption, scraping count, approval rate, and scheduling stats.
+    """
+    mode_badge = "🧪 <b>[DRY-RUN - Giả Lập]</b>" if dry_run else "🚀 <b>[PRODUCTION - Đăng Kênh]</b>"
+
+    summary_text = (
+        f"📊 <b>DanceCoverUni Pipeline Execution Summary</b>\n"
+        f"{mode_badge}\n\n"
+        f"🔍 <b>Tìm Kiếm & Cào Dữ Liệu:</b>\n"
+        f"• Jina API Tokens: <code>{jina_tokens:,}</code> tokens\n"
+        f"• Tổng video đã cào thô: <b>{total_scraped}</b>\n"
+        f"• Ứng viên mới (chưa qua xử lý): <b>{total_fresh}</b>\n\n"
+        f"🎯 <b>Tải & Kiểm Định AI (Gemini 3.1):</b>\n"
+        f"• Tải thành công: <b>{total_downloaded}</b>\n"
+        f"• Hợp lệ (Approved): <b>{total_approved}</b>\n"
+        f"• Từ chối (Rejected): <b>{total_rejected}</b>\n\n"
+        f"📅 <b>Lập Lịch Phân Phối YouTube:</b>\n"
+        f"• Đăng hôm nay (Public/Delays): <b>{today_published}</b> video\n"
+        f"• Lập lịch ngày mai: <b>{tomorrow_scheduled}</b> video\n\n"
+        f"<i>Pipeline hoàn thành chu kỳ tự động thành công.</i>"
+    )
+
+    return send_telegram_message(bot_token, chat_id, summary_text)
+

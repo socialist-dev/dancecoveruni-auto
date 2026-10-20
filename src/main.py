@@ -17,7 +17,7 @@ from .ai_keywords import get_search_keywords
 from .searcher import discover_video_urls
 from .downloader import download_video
 from .quality_checker import inspect_video_quality
-from .telegram_notifier import send_telegram_message, send_telegram_video_backup
+from .telegram_notifier import send_telegram_message, send_telegram_video_backup, send_pipeline_summary
 from .youtube_uploader import upload_youtube_shorts
 
 logging.basicConfig(
@@ -86,7 +86,7 @@ def run_pipeline():
     logger.info("Search keywords: %s", keywords)
 
     # Step 2: Discover video URLs (Jina Search with X-Respond-With: no-content)
-    candidate_urls = discover_video_urls(
+    candidate_urls, search_report = discover_video_urls(
         keywords=keywords,
         processed_urls=processed_urls,
         jina_api_key=secrets.jina_api_key,
@@ -96,10 +96,18 @@ def run_pipeline():
 
     if not candidate_urls:
         logger.warning("No new video URLs found. Exiting gracefully.")
-        send_telegram_message(
-            secrets.telegram_bot_token,
-            secrets.telegram_chat_id,
-            "ℹ️ <b>[DanceCoverUni]</b> Pipeline finished: No new video URLs found today.",
+        send_pipeline_summary(
+            bot_token=secrets.telegram_bot_token,
+            chat_id=secrets.telegram_chat_id,
+            jina_tokens=search_report.jina_tokens_used,
+            total_scraped=search_report.total_scraped,
+            total_fresh=0,
+            total_downloaded=0,
+            total_approved=0,
+            total_rejected=0,
+            today_published=0,
+            tomorrow_scheduled=0,
+            dry_run=args.dry_run,
         )
         return
 
@@ -108,6 +116,8 @@ def run_pipeline():
     download_dir.mkdir(parents=True, exist_ok=True)
 
     approved_candidates: List[tuple[VideoMetadata, str]] = []
+    downloaded_count = 0
+    rejected_count = 0
 
     for url in candidate_urls:
         if len(approved_candidates) >= max_target:
@@ -120,7 +130,7 @@ def run_pipeline():
             logger.warning("Failed downloading or rejected URL [%s], skipping to next candidate.", url)
             continue
 
-        # Record into history only when media was successfully downloaded
+        downloaded_count += 1
         processed_urls.add(url)
 
         # Quality check with Gemini Vision using multi-model fallback
@@ -139,6 +149,7 @@ def run_pipeline():
             approved_candidates.append((meta, verdict.detected_dance))
         else:
             logger.info("❌ Video rejected: [%s] (Reason: %s)", url, verdict.rejection_reason)
+            rejected_count += 1
             try:
                 os.remove(meta.local_filepath)
             except OSError:
@@ -149,14 +160,18 @@ def run_pipeline():
     # Step 4: Upload & Distribution
     now = datetime.now(timezone.utc)
     uploaded_entries = history.get("uploaded_videos", [])
+    today_published = 0
+    tomorrow_scheduled = 0
 
     for idx, (meta, dance_name) in enumerate(approved_candidates):
         is_today = idx < today_count
         if is_today:
+            today_published += 1
             delay_hours = config.get("schedule", {}).get("today_publish_delays_hours", [0, 4, 8])
             offset = delay_hours[idx] if idx < len(delay_hours) else 0
             publish_time = None if offset == 0 else (now + timedelta(hours=offset))
         else:
+            tomorrow_scheduled += 1
             tomorrow_delays = config.get("schedule", {}).get("tomorrow_schedule_delays_hours", [24, 28, 32])
             t_idx = idx - today_count
             offset = tomorrow_delays[t_idx] if t_idx < len(tomorrow_delays) else 24
@@ -204,6 +219,21 @@ def run_pipeline():
             os.remove(meta.local_filepath)
         except OSError:
             pass
+
+    # Send Executive Summary Report to Telegram
+    send_pipeline_summary(
+        bot_token=secrets.telegram_bot_token,
+        chat_id=secrets.telegram_chat_id,
+        jina_tokens=search_report.jina_tokens_used,
+        total_scraped=search_report.total_scraped,
+        total_fresh=len(candidate_urls),
+        total_downloaded=downloaded_count,
+        total_approved=len(approved_candidates),
+        total_rejected=rejected_count,
+        today_published=today_published,
+        tomorrow_scheduled=tomorrow_scheduled,
+        dry_run=args.dry_run,
+    )
 
     # Step 5: Save State
     history["last_updated"] = now.isoformat()
