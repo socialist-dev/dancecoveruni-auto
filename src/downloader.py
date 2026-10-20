@@ -65,9 +65,10 @@ def get_video_duration(file_path: Path) -> float:
     return 30.0
 
 
-def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None) -> Optional[VideoMetadata]:
+def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None, impersonate: bool = True) -> Optional[VideoMetadata]:
     """
     [Layer 1 & 2] Executes yt-dlp CLI directly via subprocess, matching local CLI behavior.
+    Supports browser impersonation via curl_cffi for WAF bypass.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     video_id = extract_video_id(url) or "video"
@@ -82,12 +83,15 @@ def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None
         "-o", outtmpl,
     ]
 
+    if impersonate:
+        cmd.extend(["--impersonate", "chrome"])
+
     if cookie_file and cookie_file.exists():
         cmd.extend(["--cookies", str(cookie_file.resolve())])
 
     cmd.append(url)
 
-    logger.info("Executing CLI yt-dlp for URL [%s] (with_cookie=%s)...", url, bool(cookie_file))
+    logger.info("Executing CLI yt-dlp for URL [%s] (with_cookie=%s, impersonate=%s)...", url, bool(cookie_file), impersonate)
     try:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
 
@@ -113,6 +117,11 @@ def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None
             )
         else:
             err_output = (proc.stderr or proc.stdout or "").strip()
+            # If impersonate failed because target or curl_cffi is missing, retry cleanly without it
+            if impersonate and "impersonate" in err_output.lower():
+                logger.info("Retrying CLI yt-dlp without --impersonate for [%s]...", url)
+                return run_ytdlp_cli(url, output_dir, cookie_file=cookie_file, impersonate=False)
+
             err_lines = [l for l in err_output.splitlines() if "ERROR" in l or "warning" in l.lower()]
             summary_msg = "; ".join(err_lines[:2]) if err_lines else err_output[-180:]
             logger.warning("CLI yt-dlp failed for URL [%s] | Exit code: %d | Detail: %s", url, proc.returncode, summary_msg)
@@ -135,6 +144,7 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
     tikwm_endpoint = f"https://www.tikwm.com/api/?url={url}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Referer": "https://www.tikwm.com/",
     }
     try:
         logger.info("Attempting Gateway download for URL [%s] via TikWM API...", url)
@@ -145,7 +155,11 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
                 v_data = data["data"]
                 stream_url = v_data.get("play") or v_data.get("wmplay")
                 if stream_url:
-                    stream_resp = requests.get(stream_url, headers=headers, stream=True, timeout=30)
+                    stream_headers = {
+                        "User-Agent": headers["User-Agent"],
+                        "Referer": "https://www.tikwm.com/",
+                    }
+                    stream_resp = requests.get(stream_url, headers=stream_headers, stream=True, timeout=30)
                     if stream_resp.status_code == 200:
                         with open(dest_file, "wb") as f:
                             for chunk in stream_resp.iter_content(chunk_size=1024 * 64):
@@ -166,6 +180,10 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
                                 duration=duration,
                                 local_filepath=str(dest_file.resolve()),
                             )
+            else:
+                logger.info("TikWM API returned code=%s, msg=%s for [%s]", data.get("code"), data.get("msg"), url)
+        else:
+            logger.info("TikWM HTTP status %d for [%s]", resp.status_code, url)
     except Exception as e:
         logger.debug("Gateway API failed for URL [%s]: %s", url, e)
 

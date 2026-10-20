@@ -6,7 +6,8 @@ Pillow>=10.0.0
 
 
 # Media Download
-yt-dlp>=2024.12.23
+yt-dlp[default,curl-cffi]>=2024.12.23
+curl_cffi>=0.7.0
 
 # YouTube Data API v3 & Authentication
 google-api-python-client>=2.118.0
