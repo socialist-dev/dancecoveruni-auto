@@ -60,3 +60,26 @@ def test_load_topics_config_fallback():
     missing = load_topics_config("config/non_existent_topics.json")
     assert missing is None
 
+
+def test_update_jina_quota_state():
+    from src.main import update_jina_quota_state
+
+    # 1. Same/Initial key: deduct from 2,055,014
+    hist = {"jina_tokens_remaining": 2055014}
+    rem = update_jina_quota_state(hist, "current_key_xyz", 55014)
+    assert rem == 2000000
+    assert hist["jina_tokens_remaining"] == 2000000
+    assert hist["jina_total_consumed"] == 55014
+
+    # 2. Second run with same key: further deduction
+    rem2 = update_jina_quota_state(hist, "current_key_xyz", 100000)
+    assert rem2 == 1900000
+    assert hist["jina_tokens_remaining"] == 1900000
+    assert hist["jina_total_consumed"] == 155014
+
+    # 3. New key detected: resets to 10,000,000 - tokens_used
+    rem3 = update_jina_quota_state(hist, "brand_new_key_123", 20000)
+    assert rem3 == 10_000_000 - 20000
+    assert hist["jina_tokens_remaining"] == 9980000
+
+

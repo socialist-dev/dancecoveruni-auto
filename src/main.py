@@ -2,9 +2,10 @@ import os
 import sys
 import argparse
 import logging
+import hashlib
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from .config_loader import (
     load_config,
@@ -43,6 +44,29 @@ def format_metadata(template_str: str, meta: VideoMetadata, detected_dance: str)
         original_url=meta.url,
         video_title=meta.title,
     )
+
+
+def update_jina_quota_state(history: dict, jina_api_key: Optional[str], tokens_used: int) -> int:
+    """
+    Updates the Jina API quota balance in history state.
+    Detects if a new Jina API key is used (via fingerprint) and resets to 10,000,000 tokens.
+    Otherwise deducts exact tokens_used from current balance (initial default: 2,055,014).
+    Returns the updated remaining token count.
+    """
+    key_fingerprint = hashlib.sha256(jina_api_key.encode("utf-8")).hexdigest()[:12] if jina_api_key else "none"
+    last_fingerprint = history.get("jina_key_fingerprint")
+
+    if last_fingerprint and last_fingerprint != key_fingerprint:
+        logger.info("New Jina API key detected (%s -> %s)! Resetting quota to 10,000,000 tokens.", last_fingerprint, key_fingerprint)
+        current_balance = 10_000_000
+    else:
+        current_balance = history.get("jina_tokens_remaining", 2055014)
+
+    history["jina_key_fingerprint"] = key_fingerprint
+    updated_remaining = max(0, current_balance - tokens_used)
+    history["jina_tokens_remaining"] = updated_remaining
+    history["jina_total_consumed"] = history.get("jina_total_consumed", 0) + tokens_used
+    return updated_remaining
 
 
 def run_pipeline():
@@ -94,14 +118,8 @@ def run_pipeline():
         max_needed=max(60, max_target * 10),
     )
 
-    # Track cumulative Jina token consumption and remaining quota
-    jina_used = search_report.jina_tokens_used
-    total_consumed = history.get("jina_total_consumed", 0) + jina_used
-    history["jina_total_consumed"] = total_consumed
-    init_quota = history.get("jina_initial_quota", 10_000_000)
-    calc_remaining = max(0, init_quota - total_consumed)
-    remaining_tokens = search_report.jina_tokens_remaining if search_report.jina_tokens_remaining is not None else calc_remaining
-    history["jina_tokens_remaining"] = remaining_tokens
+    # Track cumulative Jina token consumption and remaining quota via fingerprint
+    remaining_tokens = update_jina_quota_state(history, secrets.jina_api_key, search_report.jina_tokens_used)
 
     if not candidate_urls:
         logger.warning("No new video URLs found. Exiting gracefully.")

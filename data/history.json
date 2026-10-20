@@ -220,6 +220,6 @@
       "processed_time": "2026-10-20T07:54:08.313754+00:00"
     }
   ],
-  "jina_total_consumed": 100000,
-  "jina_tokens_remaining": 9900000
+  "jina_total_consumed": 0,
+  "jina_tokens_remaining": 2055014
 }

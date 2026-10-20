@@ -39,3 +39,7 @@ Thumbs.db
 # Documentation
 README.md
 
+# Local only documentation & internal API schemas
+docs/
+jina-docs/
+
