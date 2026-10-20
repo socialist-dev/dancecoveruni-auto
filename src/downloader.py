@@ -71,10 +71,9 @@ def run_ytdlp_cli(url: str, output_dir: Path, cookie_file: Optional[Path] = None
     cmd = [
         "yt-dlp",
         "--no-warnings",
-        "--noplaylist",
+        "--no-playlist",
         "--socket-timeout", "30",
         "--merge-output-format", "mp4",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "-o", outtmpl,
     ]
 
