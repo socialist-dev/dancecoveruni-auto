@@ -273,8 +273,8 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
             d_resp = session.get(aweme_url, headers=douyin_headers, timeout=15)
             if d_resp.status_code == 200:
                 d_json = d_resp.json()
-                item = d_json.get("aweme_detail", {})
-                play_urls = item.get("video", {}).get("play_addr", {}).get("url_list", [])
+                item = d_json.get("aweme_detail") or {}
+                play_urls = item.get("video", {}).get("play_addr", {}).get("url_list", []) if isinstance(item, dict) else []
                 if play_urls:
                     raw_stream = play_urls[0].replace("playwm", "play")
                     stream_headers = {
@@ -301,10 +301,12 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
                                 duration=duration,
                                 local_filepath=str(dest_file.resolve()),
                             )
+                else:
+                    logger.info("Douyin Aweme detail returned no video play_addr for ID [%s]: status_code=%s", video_id, d_json.get("status_code"))
             else:
                 logger.info("Douyin Aweme detail returned status %d for ID [%s]", d_resp.status_code, video_id)
         except Exception as e:
-            logger.debug("Douyin Aweme detail API failed for ID [%s]: %s", video_id, e)
+            logger.warning("Douyin Aweme detail API failed for ID [%s]: %s", video_id, e)
 
     return None
 
