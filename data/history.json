@@ -1,23 +1,29 @@
 {
-  "last_updated": "2026-10-20T05:52:33.572304+00:00",
+  "last_updated": "2026-10-20T07:54:08.313754+00:00",
   "processed_urls": [
-    "https://www.tiktok.com/@willowisp.official/video/7672399121021504800",
-    "https://www.douyin.com/video/7692993486391626406",
-    "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
-    "https://www.tiktok.com/@kellykimkai/video/7696127270125161746",
-    "https://www.tiktok.com/@unlimited.offcl/video/7695501731177843990",
     "https://www.tiktok.com/@byconniechang/video/7557039265209683231",
-    "https://www.tiktok.com/@aronkto8/video/7696586884520103201",
-    "https://www.douyin.com/video/7680043740531445194",
-    "https://www.douyin.com/video/7667975117238881882",
-    "https://www.tiktok.com/@del_daniel6/video/7617779667264654610",
-    "https://www.douyin.com/video/7694982845924606630",
-    "https://www.tiktok.com/@creme.oi/video/7691686506741730582",
-    "https://www.douyin.com/video/7674997303296008774",
-    "https://www.douyin.com/video/7634150837359761307",
     "https://www.tiktok.com/@aldrinlamadrid1/video/7680200950165802261",
     "https://www.tiktok.com/@_shelleykim/video/7681912956321533204",
+    "https://www.douyin.com/video/7627021051293225704",
+    "https://www.tiktok.com/@del_daniel6/video/7617779667264654610",
+    "https://www.douyin.com/video/7694982845924606630",
     "https://www.tiktok.com/@803.crew/video/7684318457185488158",
+    "https://www.douyin.com/video/7692993486391626406",
+    "https://www.douyin.com/video/7680043740531445194",
+    "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
+    "https://www.douyin.com/video/7634150837359761307",
+    "https://www.douyin.com/video/7679295541071277230",
+    "https://www.tiktok.com/@aronkto8/video/7696586884520103201",
+    "https://www.tiktok.com/@creme.oi/video/7691686506741730582",
+    "https://www.douyin.com/video/7693209177569337843",
+    "https://www.tiktok.com/@willowisp.official/video/7672399121021504800",
+    "https://www.tiktok.com/@unlimited.offcl/video/7695501731177843990",
+    "https://www.douyin.com/video/7667854529823845858",
+    "https://www.douyin.com/video/7667975117238881882",
+    "https://www.douyin.com/video/7682022728903906228",
+    "https://www.douyin.com/video/7674997303296008774",
+    "https://www.douyin.com/video/7692746025640306767",
+    "https://www.tiktok.com/@kellykimkai/video/7696127270125161746",
     "https://www.tiktok.com/@jerseyyjoe/video/7609506348887313678"
   ],
   "uploaded_videos": [
@@ -164,6 +170,56 @@
       "published_at": "2026-10-21T13:52:33.572304+00:00",
       "status": "scheduled",
       "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop dance cover Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7667854529823845858",
+      "published_at": "2026-10-20T07:54:08.313754+00:00",
+      "status": "public",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7693209177569337843",
+      "published_at": "2026-10-20T11:54:08.313754+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Hip-hop/Street dance choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7692746025640306767",
+      "published_at": "2026-10-20T15:54:08.313754+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7627021051293225704",
+      "published_at": "2026-10-21T07:54:08.313754+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7682022728903906228",
+      "published_at": "2026-10-21T11:54:08.313754+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography in a dance studio Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7679295541071277230",
+      "published_at": "2026-10-21T15:54:08.313754+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T07:54:08.313754+00:00"
     }
-  ]
+  ],
+  "jina_total_consumed": 100000,
+  "jina_tokens_remaining": 9900000
 }
