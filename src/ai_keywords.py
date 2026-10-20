@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import List, Optional
+import os
+from typing import List, Optional, Dict, Any
 import requests
 
 logger = logging.getLogger(__name__)
@@ -132,14 +133,54 @@ def generate_chinese_keywords_with_gemini(
     return FALLBACK_KEYWORDS
 
 
+def load_topics_config(config_path: str = "config/topics.json") -> Optional[Dict[str, Any]]:
+    """
+    Attempts to load structured topics from config/topics.json.
+    Returns parsed dictionary if valid, or None if missing/invalid.
+    """
+    try:
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and "categories" in data:
+                    logger.info("Loaded structured topics configuration from %s", config_path)
+                    return data
+    except Exception as e:
+        logger.warning("Could not read topics config from %s: %s", config_path, e)
+    return None
+
+
 def get_search_keywords(
     gemini_key: Optional[str],
     telegram_token: Optional[str],
     seed_categories: List[str],
     candidate_models: Optional[List[str]] = None,
+    topics_path: str = "config/topics.json",
 ) -> List[str]:
-    """Combines Telegram manual keywords (if any) and AI generated keywords."""
+    """
+    Combines Telegram manual keywords (if any) and AI generated keywords.
+    Prioritizes categories and guidance defined in config/topics.json if present.
+    """
     manual = fetch_telegram_manual_keywords(telegram_token)
     if manual:
         return manual
-    return generate_chinese_keywords_with_gemini(gemini_key, seed_categories, candidate_models)
+
+    topics = load_topics_config(topics_path)
+    active_categories = seed_categories
+    curated_fallback: List[str] = []
+
+    if topics:
+        cats = topics.get("categories", [])
+        if cats:
+            # Extract category names for the prompt
+            active_categories = [c.get("name", "") for c in cats if isinstance(c, dict) and c.get("name")]
+            # Extract curated queries from categories for fallback
+            for c in cats:
+                if isinstance(c, dict) and "douyin_queries" in c:
+                    curated_fallback.extend(c["douyin_queries"])
+
+    generated = generate_chinese_keywords_with_gemini(gemini_key, active_categories, candidate_models)
+    if generated:
+        return generated
+
+    return curated_fallback if curated_fallback else FALLBACK_KEYWORDS

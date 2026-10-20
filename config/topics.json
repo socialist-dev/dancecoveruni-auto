@@ -1,0 +1,80 @@
+{
+  "target_audience": "Dance Cover & Choreography Enthusiasts",
+  "target_performer_focus": "Asian Dancers & Groups (K-pop, C-pop, Street, Urban, Douyin Trends)",
+  "categories": [
+    {
+      "id": "kpop_dance_cover",
+      "name": "K-pop Dance Cover",
+      "weight": 1.0,
+      "douyin_queries": [
+        "Kpop女团舞翻跳",
+        "Kpop男团舞翻跳",
+        "Kpop热门编舞",
+        "女团舞挑战"
+      ],
+      "tiktok_hashtags": [
+        "#kpopdancecover",
+        "#kpopdance",
+        "#kpopinpublic",
+        "#kpopchoreography"
+      ]
+    },
+    {
+      "id": "douyin_viral_trends",
+      "name": "Douyin Viral Dance Challenges",
+      "weight": 0.95,
+      "douyin_queries": [
+        "抖音热舞挑战",
+        "热门舞蹈cover",
+        "抖音手势舞翻跳",
+        "全网热舞翻跳"
+      ],
+      "tiktok_hashtags": [
+        "#douyindance",
+        "#dancetrend",
+        "#dancetutorial",
+        "#chinesedance"
+      ]
+    },
+    {
+      "id": "urban_street_choreo",
+      "name": "Urban & Street Choreography",
+      "weight": 0.85,
+      "douyin_queries": [
+        "街舞编舞翻跳",
+        "爵士舞翻跳",
+        "Urban编舞翻跳",
+        "韩舞翻跳"
+      ],
+      "tiktok_hashtags": [
+        "#streetdance",
+        "#urbandance",
+        "#choreography",
+        "#dancechoreo"
+      ]
+    },
+    {
+      "id": "cpop_guofeng_dance",
+      "name": "C-pop & Guofeng Modern Dance",
+      "weight": 0.75,
+      "douyin_queries": [
+        "国风现代舞翻跳",
+        "古风爵士舞翻跳",
+        "华语流行舞翻跳"
+      ],
+      "tiktok_hashtags": [
+        "#cpopdance",
+        "#guofengdance",
+        "#asiandance"
+      ]
+    }
+  ],
+  "negative_keywords": [
+    "podcast",
+    "interview",
+    "tutorial_only",
+    "meme",
+    "vlog",
+    "reaction"
+  ]
+}

@@ -94,6 +94,15 @@ def run_pipeline():
         max_needed=max(60, max_target * 10),
     )
 
+    # Track cumulative Jina token consumption and remaining quota
+    jina_used = search_report.jina_tokens_used
+    total_consumed = history.get("jina_total_consumed", 0) + jina_used
+    history["jina_total_consumed"] = total_consumed
+    init_quota = history.get("jina_initial_quota", 10_000_000)
+    calc_remaining = max(0, init_quota - total_consumed)
+    remaining_tokens = search_report.jina_tokens_remaining if search_report.jina_tokens_remaining is not None else calc_remaining
+    history["jina_tokens_remaining"] = remaining_tokens
+
     if not candidate_urls:
         logger.warning("No new video URLs found. Exiting gracefully.")
         send_pipeline_summary(
@@ -107,8 +116,11 @@ def run_pipeline():
             total_rejected=0,
             today_published=0,
             tomorrow_scheduled=0,
+            jina_tokens_remaining=remaining_tokens,
             dry_run=args.dry_run,
         )
+        history["last_updated"] = datetime.now(timezone.utc).isoformat()
+        save_history(history)
         return
 
     # Step 3: Download & Quality Assessment Loop
@@ -232,6 +244,7 @@ def run_pipeline():
         total_rejected=rejected_count,
         today_published=today_published,
         tomorrow_scheduled=tomorrow_scheduled,
+        jina_tokens_remaining=remaining_tokens,
         dry_run=args.dry_run,
     )
 

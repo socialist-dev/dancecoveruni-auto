@@ -85,19 +85,32 @@ def send_pipeline_summary(
     total_rejected: int,
     today_published: int,
     tomorrow_scheduled: int,
+    jina_tokens_remaining: Optional[int] = None,
+    jina_warning_threshold: int = 1_000_000,
     dry_run: bool = False,
 ) -> bool:
     """
     Sends an executive summary of the pipeline execution to Telegram.
-    Includes Jina API token consumption, scraping count, approval rate, and scheduling stats.
+    Includes Jina API token consumption, remaining tokens, scraping count, approval rate,
+    and a prominent alert if remaining quota drops to <= 1,000,000 tokens.
     """
     mode_badge = "🧪 <b>[DRY-RUN - Giả Lập]</b>" if dry_run else "🚀 <b>[PRODUCTION - Đăng Kênh]</b>"
+
+    remaining_str = f"<code>{jina_tokens_remaining:,}</code> tokens" if jina_tokens_remaining is not None else "Không xác định (N/A)"
+    warning_banner = ""
+    if jina_tokens_remaining is not None and jina_tokens_remaining <= jina_warning_threshold:
+        warning_banner = (
+            f"\n\n🚨 <b>CẢNH BÁO QUOTA JINA API:</b>\n"
+            f"Quota chỉ còn <b>{jina_tokens_remaining:,}</b> tokens (dưới ngưỡng 1.000.000 tokens)!\n"
+            f"<i>Vui lòng tạo tài khoản/API key Jina mới và bổ sung vào GitHub Secrets.</i>"
+        )
 
     summary_text = (
         f"📊 <b>DanceCoverUni Pipeline Execution Summary</b>\n"
         f"{mode_badge}\n\n"
         f"🔍 <b>Tìm Kiếm & Cào Dữ Liệu:</b>\n"
-        f"• Jina API Tokens: <code>{jina_tokens:,}</code> tokens\n"
+        f"• Jina Tokens đợt này: <code>{jina_tokens:,}</code> tokens\n"
+        f"• Jina Tokens còn lại: {remaining_str}\n"
         f"• Tổng video đã cào thô: <b>{total_scraped}</b>\n"
         f"• Ứng viên mới (chưa qua xử lý): <b>{total_fresh}</b>\n\n"
         f"🎯 <b>Tải & Kiểm Định AI (Gemini 3.1):</b>\n"
@@ -106,7 +119,8 @@ def send_pipeline_summary(
         f"• Từ chối (Rejected): <b>{total_rejected}</b>\n\n"
         f"📅 <b>Lập Lịch Phân Phối YouTube:</b>\n"
         f"• Đăng hôm nay (Public/Delays): <b>{today_published}</b> video\n"
-        f"• Lập lịch ngày mai: <b>{tomorrow_scheduled}</b> video\n\n"
+        f"• Lập lịch ngày mai: <b>{tomorrow_scheduled}</b> video\n"
+        f"{warning_banner}\n"
         f"<i>Pipeline hoàn thành chu kỳ tự động thành công.</i>"
     )
 

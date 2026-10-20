@@ -1,4 +1,6 @@
 import re
+import os
+import json
 import logging
 import urllib.parse
 from dataclasses import dataclass, field
@@ -13,6 +15,7 @@ class SearchReport:
     discovered_urls: List[str] = field(default_factory=list)
     total_scraped: int = 0
     jina_tokens_used: int = 0
+    jina_tokens_remaining: Optional[int] = None
 
 
 # Strict canonical Douyin video regex: only match /video/<numeric_id>
@@ -130,6 +133,18 @@ def search_with_jina(keyword: str, api_key: Optional[str] = None, site: str = "d
             except (ValueError, TypeError):
                 tokens = 0
 
+        raw_remaining_header = (
+            resp.headers.get("x-ratelimit-remaining-tokens")
+            or resp.headers.get("x-ratelimit-remaining")
+            or resp.headers.get("x-user-token-balance")
+        )
+        remaining = None
+        if raw_remaining_header:
+            try:
+                remaining = int(raw_remaining_header)
+            except (ValueError, TypeError):
+                remaining = None
+
         if resp.status_code == 200:
             if tokens == 0:
                 tokens = 10000  # Default base tokens per successful Jina search query
@@ -154,14 +169,14 @@ def search_with_jina(keyword: str, api_key: Optional[str] = None, site: str = "d
                 found_urls = extract_video_urls_from_text(resp.text)
                 raw_count = len(found_urls)
 
-            logger.info("Jina Search returned %d valid canonical video URLs (raw: %d, tokens: %d) for '%s'", len(found_urls), raw_count, tokens, keyword)
-            return found_urls, raw_count, tokens
+            logger.info("Jina Search returned %d valid canonical video URLs (raw: %d, tokens: %d, remaining: %s) for '%s'", len(found_urls), raw_count, tokens, remaining, keyword)
+            return found_urls, raw_count, tokens, remaining
         else:
             logger.warning("Jina Search returned status %d: %s", resp.status_code, resp.text[:200])
     except Exception as e:
         logger.warning("Jina Search failed for keyword '%s': %s", keyword, e)
 
-    return [], 0, 0
+    return [], 0, 0, None
 
 
 def search_with_firecrawl(dork_query: str, api_key: Optional[str]) -> List[str]:
@@ -194,6 +209,7 @@ def discover_video_urls(
     jina_api_key: Optional[str] = None,
     firecrawl_api_key: Optional[str] = None,
     max_needed: int = 15,
+    topics_path: str = "config/topics.json",
 ) -> Tuple[List[str], SearchReport]:
     """
     Iterates through keywords to discover fresh canonical Douyin & TikTok video URLs.
@@ -208,9 +224,11 @@ def discover_video_urls(
         if len(report.discovered_urls) >= max_needed:
             break
 
-        found, raw_count, tokens = search_with_jina(kw, jina_api_key, site="douyin.com")
+        found, raw_count, tokens, rem = search_with_jina(kw, jina_api_key, site="douyin.com")
         report.total_scraped += raw_count
         report.jina_tokens_used += tokens
+        if rem is not None:
+            report.jina_tokens_remaining = rem
 
         if not found and firecrawl_api_key:
             dork = f'site:douyin.com/video/ "{kw}"'
@@ -230,12 +248,31 @@ def discover_video_urls(
     if len(report.discovered_urls) < max_needed:
         logger.info("Discovering supplemental TikTok dance cover candidates (current: %d/%d)...", len(report.discovered_urls), max_needed)
         tiktok_keywords = ["kpop dance cover", "trending dance choreo", "douyin dance challenge"]
+        try:
+            if os.path.exists(topics_path):
+                with open(topics_path, "r", encoding="utf-8") as f:
+                    t_data = json.load(f)
+                    custom_tt = []
+                    for c in t_data.get("categories", []):
+                        if isinstance(c, dict):
+                            for tag in c.get("tiktok_hashtags", []):
+                                clean_tag = tag.lstrip("#")
+                                if clean_tag and clean_tag not in custom_tt:
+                                    custom_tt.append(clean_tag)
+                    if custom_tt:
+                        tiktok_keywords = custom_tt
+        except Exception as e:
+            logger.debug("Could not read TikTok hashtags from %s: %s", topics_path, e)
+
         for kw in tiktok_keywords:
             if len(report.discovered_urls) >= max_needed:
                 break
-            found_tt, raw_tt_count, tt_tokens = search_with_jina(kw, jina_api_key, site="tiktok.com")
+            found_tt, raw_tt_count, tt_tokens, tt_rem = search_with_jina(kw, jina_api_key, site="tiktok.com")
             report.total_scraped += raw_tt_count
             report.jina_tokens_used += tt_tokens
+            if tt_rem is not None:
+                report.jina_tokens_remaining = tt_rem
+
             for u in found_tt:
                 if u not in discovered_set:
                     discovered_set.add(u)
@@ -245,7 +282,7 @@ def discover_video_urls(
                         break
 
     logger.info(
-        "Total fresh candidate URLs discovered: %d | Total raw scraped: %d | Jina tokens used: %d",
-        len(report.discovered_urls), report.total_scraped, report.jina_tokens_used
+        "Total fresh candidate URLs discovered: %d | Total raw scraped: %d | Jina tokens used: %d | Remaining: %s",
+        len(report.discovered_urls), report.total_scraped, report.jina_tokens_used, report.jina_tokens_remaining
     )
     return report.discovered_urls, report

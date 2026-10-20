@@ -37,3 +37,26 @@ def test_models_contracts():
         detected_dance="Kpop Choreo",
     )
     assert quality.overall_pass is True
+
+
+def test_topics_config_structure():
+    from src.ai_keywords import load_topics_config
+    topics = load_topics_config("config/topics.json")
+    assert topics is not None
+    assert "categories" in topics
+    assert len(topics["categories"]) > 0
+
+    for cat in topics["categories"]:
+        assert "id" in cat
+        assert "name" in cat
+        assert "douyin_queries" in cat
+        assert "tiktok_hashtags" in cat
+        assert len(cat["douyin_queries"]) > 0
+        assert len(cat["tiktok_hashtags"]) > 0
+
+
+def test_load_topics_config_fallback():
+    from src.ai_keywords import load_topics_config
+    missing = load_topics_config("config/non_existent_topics.json")
+    assert missing is None
+
