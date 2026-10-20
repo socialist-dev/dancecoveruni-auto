@@ -1,5 +1,61 @@
 {
-  "last_updated": "2026-10-20T00:23:57.214791+00:00",
-  "processed_urls": [],
-  "uploaded_videos": []
+  "last_updated": "2026-10-20T00:30:20.646076+00:00",
+  "processed_urls": [
+    "https://www.tiktok.com/@aronkto8/video/7696586884520103201",
+    "https://www.tiktok.com/@kellykimkai/video/7696127270125161746",
+    "https://www.tiktok.com/@803.crew/video/7684318457185488158",
+    "https://www.tiktok.com/@byconniechang/video/7557039265209683231",
+    "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
+    "https://www.tiktok.com/@willowisp.official/video/7672399121021504800"
+  ],
+  "uploaded_videos": [
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Hip-hop / Freestyle dance Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@aronkto8/video/7696586884520103201",
+      "published_at": "2026-10-20T00:30:20.646076+00:00",
+      "status": "public",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style group choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
+      "published_at": "2026-10-20T04:30:20.646076+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "BESTie - Love Options Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@kellykimkai/video/7696127270125161746",
+      "published_at": "2026-10-20T08:30:20.646076+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Dance/choreography attempt Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@byconniechang/video/7557039265209683231",
+      "published_at": "2026-10-21T00:30:20.646076+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Group choreography, K-pop style dance cover Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@803.crew/video/7684318457185488158",
+      "published_at": "2026-10-21T04:30:20.646076+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Group choreography performance in a public outdoor setting Dance Cover #Shorts",
+      "douyin_url": "https://www.tiktok.com/@willowisp.official/video/7672399121021504800",
+      "published_at": "2026-10-21T08:30:20.646076+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T00:30:20.646076+00:00"
+    }
+  ]
 }
