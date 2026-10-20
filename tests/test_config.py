@@ -13,7 +13,7 @@ def test_channel_config_structure():
     assert config["schedule"]["daily_max_candidates"] == 6
     assert config["schedule"]["daily_publish_count"] == 3
     assert config["quality_gate"]["primary_vision_model"] == "gemini-3.1-flash-lite"
-    assert config["quality_gate"]["primary_text_model"] == "gemma-4-31b"
+    assert config["quality_gate"]["primary_text_model"] == "gemini-3.1-flash-lite"
     assert len(config["seed_categories"]) > 0
 
 
