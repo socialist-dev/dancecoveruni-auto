@@ -1,18 +1,24 @@
 {
-  "last_updated": "2026-10-20T05:45:38.892101+00:00",
+  "last_updated": "2026-10-20T05:52:33.572304+00:00",
   "processed_urls": [
-    "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
-    "https://www.tiktok.com/@byconniechang/video/7557039265209683231",
     "https://www.tiktok.com/@willowisp.official/video/7672399121021504800",
-    "https://www.tiktok.com/@803.crew/video/7684318457185488158",
-    "https://www.tiktok.com/@creme.oi/video/7691686506741730582",
-    "https://www.tiktok.com/@unlimited.offcl/video/7695501731177843990",
-    "https://www.tiktok.com/@_shelleykim/video/7681912956321533204",
-    "https://www.tiktok.com/@jerseyyjoe/video/7609506348887313678",
-    "https://www.tiktok.com/@del_daniel6/video/7617779667264654610",
+    "https://www.douyin.com/video/7692993486391626406",
+    "https://www.tiktok.com/@sakieryy/video/7697718299941014806",
     "https://www.tiktok.com/@kellykimkai/video/7696127270125161746",
+    "https://www.tiktok.com/@unlimited.offcl/video/7695501731177843990",
+    "https://www.tiktok.com/@byconniechang/video/7557039265209683231",
     "https://www.tiktok.com/@aronkto8/video/7696586884520103201",
-    "https://www.tiktok.com/@aldrinlamadrid1/video/7680200950165802261"
+    "https://www.douyin.com/video/7680043740531445194",
+    "https://www.douyin.com/video/7667975117238881882",
+    "https://www.tiktok.com/@del_daniel6/video/7617779667264654610",
+    "https://www.douyin.com/video/7694982845924606630",
+    "https://www.tiktok.com/@creme.oi/video/7691686506741730582",
+    "https://www.douyin.com/video/7674997303296008774",
+    "https://www.douyin.com/video/7634150837359761307",
+    "https://www.tiktok.com/@aldrinlamadrid1/video/7680200950165802261",
+    "https://www.tiktok.com/@_shelleykim/video/7681912956321533204",
+    "https://www.tiktok.com/@803.crew/video/7684318457185488158",
+    "https://www.tiktok.com/@jerseyyjoe/video/7609506348887313678"
   ],
   "uploaded_videos": [
     {
@@ -110,6 +116,54 @@
       "published_at": "2026-10-21T13:45:38.892101+00:00",
       "status": "scheduled",
       "processed_time": "2026-10-20T05:45:38.892101+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Dance tutorial / choreography breakdown Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7674997303296008774",
+      "published_at": "2026-10-20T05:52:33.572304+00:00",
+      "status": "public",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style group choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7692993486391626406",
+      "published_at": "2026-10-20T09:52:33.572304+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Group choreography performance Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7680043740531445194",
+      "published_at": "2026-10-20T13:52:33.572304+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7667975117238881882",
+      "published_at": "2026-10-21T05:52:33.572304+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "Urban/Hip-hop dance choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7634150837359761307",
+      "published_at": "2026-10-21T09:52:33.572304+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
+    },
+    {
+      "youtube_id": "mock_yt_id_12345",
+      "title": "K-pop style choreography Dance Cover #Shorts",
+      "douyin_url": "https://www.douyin.com/video/7694982845924606630",
+      "published_at": "2026-10-21T13:52:33.572304+00:00",
+      "status": "scheduled",
+      "processed_time": "2026-10-20T05:52:33.572304+00:00"
     }
   ]
 }
