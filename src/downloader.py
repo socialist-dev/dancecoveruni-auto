@@ -11,8 +11,8 @@ from .cookie_manager import ensure_douyin_cookie_file
 
 logger = logging.getLogger(__name__)
 
-VALID_DOUYIN_PATTERN = re.compile(r"^https://www\.douyin\.com/video/(\d+)$")
-VALID_TIKTOK_PATTERN = re.compile(r"^https://www\.tiktok\.com/@[^/]+/video/(\d+)$")
+VALID_DOUYIN_PATTERN = re.compile(r"^https://(?:www\.)?douyin\.com/video/(\d{15,25})$")
+VALID_TIKTOK_PATTERN = re.compile(r"^https://(?:www\.)?tiktok\.com/@[^/\s?#]+/video/(\d{15,25})$")
 
 
 def sanitize_url(url: str) -> str:
@@ -23,9 +23,9 @@ def sanitize_url(url: str) -> str:
     m = re.search(r"douyin\.com/video/(\d{15,25})", cleaned)
     if m:
         return f"https://www.douyin.com/video/{m.group(1)}"
-    m_tk = re.search(r"tiktok\.com/@[^/\s?#]+/video/(\d{15,25})", cleaned)
+    m_tk = re.search(r"tiktok\.com/(@[^/\s?#]+/video/(\d{15,25}))", cleaned)
     if m_tk:
-        return m_tk.group(0).split("?")[0].rstrip(".,:;…!?'\"/) \t\n")
+        return f"https://www.tiktok.com/{m_tk.group(1)}"
     return cleaned
 
 
@@ -38,8 +38,13 @@ def is_valid_download_url(url: str) -> bool:
 def extract_video_id(url: str) -> Optional[str]:
     """Extracts numeric video ID from canonical Douyin/TikTok URL."""
     clean = sanitize_url(url)
-    m = VALID_DOUYIN_PATTERN.match(clean) or VALID_TIKTOK_PATTERN.match(clean)
-    return m.group(1) if m else None
+    m_dy = VALID_DOUYIN_PATTERN.match(clean)
+    if m_dy:
+        return m_dy.group(1)
+    m_tk = VALID_TIKTOK_PATTERN.match(clean)
+    if m_tk:
+        return m_tk.group(1)
+    return None
 
 
 def get_video_duration(file_path: Path) -> float:
@@ -171,6 +176,9 @@ def download_with_direct_douyin_api(url: str, output_dir: Path) -> Optional[Vide
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
             "Referer": "https://www.douyin.com/",
         }
+        cookie_val = os.getenv("DOUYIN_COOKIES", "")
+        if cookie_val:
+            douyin_headers["Cookie"] = cookie_val.replace("\n", " ").strip()
         try:
             logger.info("Attempting Douyin Aweme detail endpoint for ID [%s]...", video_id)
             d_resp = requests.get(aweme_url, headers=douyin_headers, timeout=12)

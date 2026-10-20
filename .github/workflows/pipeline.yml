@@ -45,7 +45,11 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt --upgrade yt-dlp
+          pip install -r requirements.txt pytest --upgrade yt-dlp
+
+      - name: Run Unit Tests
+        run: |
+          pytest tests/ -v
 
       - name: Execute Pipeline
         env:

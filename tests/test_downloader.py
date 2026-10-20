@@ -24,6 +24,12 @@ def test_url_validation():
     assert is_valid_download_url("https://www.tiktok.com/@dancer/video/7123456789012345678...")
     assert extract_video_id("https://www.tiktok.com/@dancer/video/7123456789012345678...") == "7123456789012345678"
 
+    assert is_valid_download_url("https://www.tiktok.com/@_shelleykim/video/7681912956321533204")
+    assert extract_video_id("https://www.tiktok.com/@_shelleykim/video/7681912956321533204") == "7681912956321533204"
+
+    assert is_valid_download_url("https://www.tiktok.com/@dancer.official/video/7123456789012345678?is_from_webapp=1")
+    assert extract_video_id("https://www.tiktok.com/@dancer.official/video/7123456789012345678?is_from_webapp=1") == "7123456789012345678"
+
     # Invalid non-video URLs
     assert not is_valid_download_url("https://www.douyin.com/user/12345")
     assert not is_valid_download_url("https://www.douyin.com/search/dance")
