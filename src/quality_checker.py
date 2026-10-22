@@ -127,6 +127,7 @@ def inspect_video_quality(
                     overall_pass=data.get("overall_pass", False),
                     detected_dance=data.get("detected_dance") or "Dance Cover",
                     rejection_reason=data.get("rejection_reason", ""),
+                    frame_paths=frame_files,
                 )
                 logger.info(
                     "Vision Model '%s' Verdict: overall_pass=%s, dance='%s', reason='%s'",
@@ -141,14 +142,15 @@ def inspect_video_quality(
                 if sleep_seconds > 0:
                     time.sleep(sleep_seconds)
 
-        return QualityResult(overall_pass=False, rejection_reason="All Gemini Vision candidate models failed.")
-    finally:
-        for f in frame_files:
-            try:
-                os.remove(f)
-            except OSError:
-                pass
-        try:
-            temp_frames_dir.rmdir()
-        except OSError:
-            pass
+        return QualityResult(
+            overall_pass=False,
+            rejection_reason="All Gemini Vision candidate models failed.",
+            frame_paths=frame_files,
+        )
+    except Exception as e:
+        logger.warning("Quality check encountered error: %s", e)
+        return QualityResult(
+            overall_pass=False,
+            rejection_reason=f"Quality check error: {e}",
+            frame_paths=frame_files,
+        )

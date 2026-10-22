@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "config" / "channel_config.json"
 HISTORY_PATH = ROOT_DIR / "data" / "history.json"
+YOUTUBE_UPLOAD_CONFIG_PATH = ROOT_DIR / "config" / "youtube_upload.json"
 
 
 class VideoMetadata(BaseModel):
@@ -28,6 +29,7 @@ class QualityResult(BaseModel):
     overall_pass: bool = False
     detected_dance: str = "Dance Cover"
     rejection_reason: str = ""
+    frame_paths: List[str] = Field(default_factory=list)
 
 
 class EnvSecrets(BaseModel):
@@ -81,3 +83,15 @@ def save_history(history_data: Dict[str, Any]) -> None:
     with open(temp_path, "w", encoding="utf-8") as f:
         json.dump(history_data, f, indent=2, ensure_ascii=False)
     temp_path.replace(HISTORY_PATH)
+
+
+def load_youtube_upload_config() -> Dict[str, Any]:
+    """Loads YouTube upload configuration from config/youtube_upload.json."""
+    if not YOUTUBE_UPLOAD_CONFIG_PATH.exists():
+        return {
+            "snippet_defaults": {"categoryId": "24", "defaultLanguage": "vi"},
+            "status_defaults": {"selfDeclaredMadeForKids": False},
+            "metadata_system_prompt": "",
+        }
+    with open(YOUTUBE_UPLOAD_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)

@@ -83,3 +83,62 @@ def test_update_jina_quota_state():
     assert hist["jina_tokens_remaining"] == 9980000
 
 
+def test_youtube_upload_config_structure():
+    from src.config_loader import load_youtube_upload_config
+    yt_config = load_youtube_upload_config()
+    assert "snippet_defaults" in yt_config
+    assert "status_defaults" in yt_config
+    assert "metadata_system_prompt" in yt_config
+    assert len(yt_config["metadata_system_prompt"]) > 100
+    assert yt_config["snippet_defaults"]["categoryId"] == "24"
+
+
+def test_search_result_item_contract():
+    from src.searcher import SearchResultItem, SearchReport
+    item = SearchResultItem(url="https://www.douyin.com/video/123", jina_title="Test Title", jina_description="Test Desc")
+    assert item.url == "https://www.douyin.com/video/123"
+    assert item.jina_title == "Test Title"
+    assert item.jina_description == "Test Desc"
+
+    report = SearchReport(discovered_items=[item])
+    assert len(report.discovered_items) == 1
+    assert report.discovered_urls == ["https://www.douyin.com/video/123"]
+
+
+def test_metadata_generator_parsing():
+    from src.metadata_generator import _parse_ai_response, _fallback_metadata, YouTubeMetadata
+
+    sample_ai_json = {
+        "title": "Insane Hip-Hop Choreo #dance #dancecover #shorts",
+        "description": {
+            "contextual_summary": "Dancer in \"oversized hoodie\" executing sharp popping.",
+            "thematic_seo": "Viral rhythm breakdown and stage presence.",
+            "hashtags": "#hiphop #streetdance #dancover_uni",
+            "keyword_cloud": "hiphop, popping, urban dance"
+        },
+        "tags": "dance cover, hip hop, popping, street dance",
+        "pinned_comment": "Rate this performance from 1 to 10! 🔥"
+    }
+
+    meta = _parse_ai_response(sample_ai_json)
+    assert meta.title == "Insane Hip-Hop Choreo #dance #dancecover #shorts"
+    assert "oversized hoodie" in meta.description_contextual
+    assert "#dancover_uni" in meta.description_hashtags
+    assert "hip hop" in meta.tags
+    assert meta.pinned_comment == "Rate this performance from 1 to 10! 🔥"
+
+    full_desc = meta.format_full_description(author_name="DancePro", original_url="https://douyin.com/video/123")
+    assert "Creator Credit: DancePro" in full_desc
+    assert "Original Video: https://douyin.com/video/123" in full_desc
+    assert "All rights belong to the original creators" in full_desc
+
+
+def test_metadata_generator_fallback():
+    from src.metadata_generator import _fallback_metadata
+    fb = _fallback_metadata("Kpop Choreo", jina_title="Original Title")
+    assert "Original Title" in fb.title
+    assert "Kpop Choreo" in fb.description_contextual
+    assert len(fb.tags) > 0
+    assert fb.pinned_comment != ""
+
+

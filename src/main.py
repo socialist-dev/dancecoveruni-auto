@@ -12,12 +12,14 @@ from .config_loader import (
     load_env_secrets,
     load_history,
     save_history,
+    load_youtube_upload_config,
     VideoMetadata,
 )
 from .ai_keywords import get_search_keywords
-from .searcher import discover_video_urls
+from .searcher import discover_video_urls, SearchResultItem
 from .downloader import download_video
 from .quality_checker import inspect_video_quality
+from .metadata_generator import generate_youtube_metadata, YouTubeMetadata
 from .telegram_notifier import send_telegram_message, send_telegram_video_backup, send_pipeline_summary
 from .youtube_uploader import upload_youtube_shorts
 
@@ -74,8 +76,11 @@ def run_pipeline():
     logger.info("Starting Dance Cover Universe Pipeline (dry_run=%s)", args.dry_run)
 
     config = load_config()
+    yt_upload_config = load_youtube_upload_config()
     secrets = load_env_secrets()
     history = load_history()
+
+    metadata_system_prompt = yt_upload_config.get("metadata_system_prompt", "")
 
     processed_urls = set(history.get("processed_urls", []))
     max_target = min(args.max_candidates, config.get("schedule", {}).get("daily_max_candidates", 6))
@@ -110,7 +115,7 @@ def run_pipeline():
     logger.info("Search keywords: %s", keywords)
 
     # Step 2: Discover video URLs (Jina Search with X-Respond-With: no-content)
-    candidate_urls, search_report = discover_video_urls(
+    candidate_items, search_report = discover_video_urls(
         keywords=keywords,
         processed_urls=processed_urls,
         jina_api_key=secrets.jina_api_key,
@@ -121,7 +126,7 @@ def run_pipeline():
     # Track cumulative Jina token consumption and remaining quota via fingerprint
     remaining_tokens = update_jina_quota_state(history, secrets.jina_api_key, search_report.jina_tokens_used)
 
-    if not candidate_urls:
+    if not candidate_items:
         logger.warning("No new video URLs found. Exiting gracefully.")
         send_pipeline_summary(
             bot_token=secrets.telegram_bot_token,
@@ -145,11 +150,12 @@ def run_pipeline():
     download_dir = Path(__file__).resolve().parent.parent / "downloads"
     download_dir.mkdir(parents=True, exist_ok=True)
 
-    approved_candidates: List[tuple[VideoMetadata, str]] = []
+    approved_candidates: List[tuple[VideoMetadata, str, YouTubeMetadata]] = []
     downloaded_count = 0
     rejected_count = 0
 
-    for url in candidate_urls:
+    for item in candidate_items:
+        url = item.url
         if len(approved_candidates) >= max_target:
             break
 
@@ -176,12 +182,36 @@ def run_pipeline():
 
         if verdict.overall_pass:
             logger.info("✅ Video approved: [%s] (Dance: %s)", url, verdict.detected_dance)
-            approved_candidates.append((meta, verdict.detected_dance))
+            # Generate SEO-optimized YouTube metadata using preserved frames
+            yt_meta = generate_youtube_metadata(
+                frame_paths=verdict.frame_paths,
+                gemini_api_key=secrets.gemini_api_key,
+                system_prompt=metadata_system_prompt,
+                detected_dance=verdict.detected_dance,
+                jina_title=item.jina_title,
+                jina_description=item.jina_description,
+                author_name=meta.author_name,
+                candidate_models=vision_models,
+                sleep_seconds=q_gate.get("rate_limit_sleep_seconds", 3),
+            )
+            approved_candidates.append((meta, verdict.detected_dance, yt_meta))
         else:
             logger.info("❌ Video rejected: [%s] (Reason: %s)", url, verdict.rejection_reason)
             rejected_count += 1
             try:
                 os.remove(meta.local_filepath)
+            except OSError:
+                pass
+
+        # Cleanup extracted frames for this candidate
+        for f in verdict.frame_paths:
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        if verdict.frame_paths:
+            try:
+                Path(verdict.frame_paths[0]).parent.rmdir()
             except OSError:
                 pass
 
@@ -193,7 +223,7 @@ def run_pipeline():
     today_published = 0
     tomorrow_scheduled = 0
 
-    for idx, (meta, dance_name) in enumerate(approved_candidates):
+    for idx, (meta, dance_name, yt_meta) in enumerate(approved_candidates):
         is_today = idx < today_count
         if is_today:
             today_published += 1
@@ -207,12 +237,24 @@ def run_pipeline():
             offset = tomorrow_delays[t_idx] if t_idx < len(tomorrow_delays) else 24
             publish_time = now + timedelta(hours=offset)
 
-        title = format_metadata(config["metadata_templates"]["title_template"], meta, dance_name)
-        desc = format_metadata(config["metadata_templates"]["description_template"], meta, dance_name)
-        tags = config["metadata_templates"].get("tags", [])
+        # Build YouTube metadata with AI output (fallback to templates if empty)
+        title = yt_meta.title[:100] if yt_meta.title else format_metadata(config["metadata_templates"]["title_template"], meta, dance_name)
+        desc = yt_meta.format_full_description(meta.author_name, meta.url)
+        tags = yt_meta.tags if yt_meta.tags else config["metadata_templates"].get("tags", [])
 
-        # Send Telegram Backup
-        tg_caption = f"📹 <b>New Dance Cover</b>\n\n<b>Title:</b> {title}\n<b>Author:</b> {meta.author_name}\n<b>Schedule:</b> {'Today (Public)' if is_today else f'Tomorrow ({publish_time})'}\n<b>Source:</b> {meta.url}"
+        # Send Telegram Backup with rich metadata caption
+        tags_display = ", ".join(tags[:8]) if tags else "dance cover, shorts"
+        pin_display = yt_meta.pinned_comment[:100] if yt_meta.pinned_comment else "Rate this dance cover 1-10! 🔥"
+        schedule_label = "Today (Public)" if is_today else f"Tomorrow ({publish_time})"
+        tg_caption = (
+            f"📹 <b>New Dance Cover</b>\n\n"
+            f"<b>🎬 Title:</b> {title}\n"
+            f"<b>👤 Author:</b> {meta.author_name}\n"
+            f"<b>📅 Schedule:</b> {schedule_label}\n"
+            f"<b>🔗 Source:</b> {meta.url}\n\n"
+            f"<b>🏷️ Tags:</b> {tags_display}\n"
+            f"<b>💬 Pin:</b> {pin_display}"
+        )
         send_telegram_video_backup(
             bot_token=secrets.telegram_bot_token,
             chat_id=secrets.telegram_chat_id,
@@ -229,7 +271,7 @@ def run_pipeline():
             title=title,
             description=desc,
             tags=tags,
-            category_id=config["channel"].get("category_id", "24"),
+            category_id=yt_upload_config.get("snippet_defaults", {}).get("categoryId", config["channel"].get("category_id", "24")),
             publish_at=publish_time,
             dry_run=args.dry_run,
         )
@@ -256,7 +298,7 @@ def run_pipeline():
         chat_id=secrets.telegram_chat_id,
         jina_tokens=search_report.jina_tokens_used,
         total_scraped=search_report.total_scraped,
-        total_fresh=len(candidate_urls),
+        total_fresh=len(candidate_items),
         total_downloaded=downloaded_count,
         total_approved=len(approved_candidates),
         total_rejected=rejected_count,
