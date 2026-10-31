@@ -58,17 +58,24 @@ def upload_youtube_shorts(
       - Otherwise, publishes immediately ('public').
     Returns YouTube video ID if successful.
     """
-    if dry_run or not (client_id and client_secret and refresh_token):
-        mode_str = "DRY-RUN" if dry_run else "NO_CREDENTIALS"
+    if dry_run:
         status_info = privacy_status if privacy_status else ("SCHEDULED" if publish_at else "PUBLIC")
         logger.info(
-            "[MOCK] YouTube Upload (%s): Title='%s', status=%s, publish_at=%s",
-            mode_str,
+            "[MOCK] YouTube Upload (DRY-RUN): Title='%s', status=%s, publish_at=%s",
             title,
             status_info,
             publish_at.isoformat() if publish_at else "None",
         )
         return "mock_yt_id_12345"
+
+    if not (client_id and client_secret and refresh_token):
+        logger.error(
+            "Missing required YouTube credentials for production upload! (client_id=%s, client_secret=%s, refresh_token=%s)",
+            bool(client_id),
+            bool(client_secret),
+            bool(refresh_token),
+        )
+        return None
 
     try:
         service = get_youtube_client(client_id, client_secret, refresh_token)

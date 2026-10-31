@@ -18,7 +18,7 @@ class TestYouTubeUploader(unittest.TestCase):
         )
         self.assertEqual(video_id, "mock_yt_id_12345")
 
-    def test_missing_credentials_returns_mock_id(self):
+    def test_missing_credentials_in_production_returns_none(self):
         video_id = upload_youtube_shorts(
             client_id=None,
             client_secret=None,
@@ -28,6 +28,19 @@ class TestYouTubeUploader(unittest.TestCase):
             description="Test description",
             tags=["dance", "shorts"],
             dry_run=False,
+        )
+        self.assertIsNone(video_id)
+
+    def test_missing_credentials_in_dry_run_returns_mock_id(self):
+        video_id = upload_youtube_shorts(
+            client_id=None,
+            client_secret=None,
+            refresh_token=None,
+            video_filepath="dummy.mp4",
+            title="Test Dance Cover #shorts",
+            description="Test description",
+            tags=["dance", "shorts"],
+            dry_run=True,
         )
         self.assertEqual(video_id, "mock_yt_id_12345")
 
