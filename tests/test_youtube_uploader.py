@@ -148,5 +148,24 @@ class TestYouTubeUploader(unittest.TestCase):
         self.assertIsNone(video_id)
 
 
+    @patch("src.youtube_uploader.build")
+    @patch("src.youtube_uploader.Request")
+    @patch("src.youtube_uploader.Credentials")
+    def test_get_youtube_client_inherits_scopes(self, mock_creds_cls, mock_req_cls, mock_build):
+        mock_creds = MagicMock()
+        mock_creds_cls.return_value = mock_creds
+
+        service = get_youtube_client("cid", "csecret", "rtoken")
+        self.assertIsNotNone(service)
+        mock_creds_cls.assert_called_once_with(
+            None,
+            refresh_token="rtoken",
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id="cid",
+            client_secret="csecret",
+            scopes=None,
+        )
+        mock_creds.refresh.assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()

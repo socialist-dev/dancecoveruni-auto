@@ -28,7 +28,7 @@ def get_youtube_client(
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=YOUTUBE_UPLOAD_SCOPE,
+        scopes=None,
     )
 
     credentials.refresh(Request())
