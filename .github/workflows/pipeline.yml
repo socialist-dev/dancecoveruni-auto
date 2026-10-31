@@ -12,10 +12,20 @@ on:
         type: boolean
         default: false
       max_candidates:
-        description: 'Maximum approved videos to process (up to 6)'
+        description: 'Maximum approved videos to process (Set 1 for testing)'
         required: false
         type: number
-        default: 6
+        default: 1
+      privacy_status:
+        description: 'YouTube Privacy Status (private, unlisted, public, default)'
+        required: false
+        type: choice
+        options:
+          - 'private'
+          - 'unlisted'
+          - 'public'
+          - 'default'
+        default: 'private'
 
 permissions:
   contents: write
@@ -69,6 +79,9 @@ jobs:
           fi
           if [ -n "${{ inputs.max_candidates }}" ]; then
             ARGS="$ARGS --max-candidates ${{ inputs.max_candidates }}"
+          fi
+          if [ -n "${{ inputs.privacy_status }}" ] && [ "${{ inputs.privacy_status }}" != "default" ]; then
+            ARGS="$ARGS --privacy-status ${{ inputs.privacy_status }}"
           fi
           python -m src.main $ARGS
 

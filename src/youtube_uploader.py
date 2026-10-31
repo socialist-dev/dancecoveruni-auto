@@ -6,6 +6,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -44,20 +45,28 @@ def upload_youtube_shorts(
     tags: List[str],
     category_id: str = "24",
     publish_at: Optional[datetime] = None,
+    privacy_status: Optional[str] = None,
     dry_run: bool = False,
 ) -> Optional[str]:
     """
     Uploads vertical video as YouTube Shorts.
-    If publish_at is provided, sets privacyStatus to 'private' and schedules publication.
-    Otherwise, publishes immediately ('public').
+    If privacy_status is provided (e.g. 'private', 'unlisted', 'public'):
+      - Sets status.privacyStatus directly.
+      - If publish_at is also set AND privacy_status == 'private', schedules publication.
+    If privacy_status is None:
+      - If publish_at is provided, sets privacyStatus to 'private' and schedules publication.
+      - Otherwise, publishes immediately ('public').
     Returns YouTube video ID if successful.
     """
     if dry_run or not (client_id and client_secret and refresh_token):
+        mode_str = "DRY-RUN" if dry_run else "NO_CREDENTIALS"
+        status_info = privacy_status if privacy_status else ("SCHEDULED" if publish_at else "PUBLIC")
         logger.info(
-            "[MOCK] YouTube Upload (%s): Title='%s', publish_at=%s",
-            "DRY-RUN" if dry_run else "NO_CREDENTIALS",
+            "[MOCK] YouTube Upload (%s): Title='%s', status=%s, publish_at=%s",
+            mode_str,
             title,
-            publish_at.isoformat() if publish_at else "IMMEDIATE (PUBLIC)",
+            status_info,
+            publish_at.isoformat() if publish_at else "None",
         )
         return "mock_yt_id_12345"
 
@@ -80,7 +89,15 @@ def upload_youtube_shorts(
             },
         }
 
-        if publish_at:
+        if privacy_status in ["private", "unlisted", "public"]:
+            body["status"]["privacyStatus"] = privacy_status
+            if publish_at and privacy_status == "private":
+                publish_iso = publish_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                body["status"]["publishAt"] = publish_iso
+                logger.info("Scheduling YouTube Shorts (%s) for: %s", privacy_status, publish_iso)
+            else:
+                logger.info("Setting YouTube Shorts status directly to '%s' (No auto-scheduling)", privacy_status)
+        elif publish_at:
             # Scheduled publish requires privacyStatus = 'private' and publishAt in RFC 3339 format
             publish_iso = publish_at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
             body["status"]["privacyStatus"] = "private"
@@ -113,6 +130,9 @@ def upload_youtube_shorts(
         video_id = response.get("id")
         logger.info("Successfully uploaded video to YouTube! URL: https://youtube.com/shorts/%s", video_id)
         return video_id
+    except HttpError as e:
+        logger.error("YouTube API HttpError during upload: status=%s, details=%s", e.status_code, e.error_details or e.content)
+        return None
     except Exception as e:
         logger.error("Failed uploading to YouTube: %s", e)
         return None

@@ -34,6 +34,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Dance Cover Universe YouTube Shorts Automation")
     parser.add_argument("--dry-run", action="store_true", help="Simulate pipeline without actual upload")
     parser.add_argument("--max-candidates", type=int, default=6, help="Target number of approved videos (max 6)")
+    parser.add_argument(
+        "--privacy-status",
+        type=str,
+        default="default",
+        choices=["default", "private", "unlisted", "public"],
+        help="YouTube Shorts privacy status override (default uses normal schedule, private/unlisted skips scheduling)",
+    )
     return parser.parse_args()
 
 
@@ -223,19 +230,28 @@ def run_pipeline():
     today_published = 0
     tomorrow_scheduled = 0
 
+    custom_privacy = args.privacy_status if args.privacy_status != "default" else None
+
     for idx, (meta, dance_name, yt_meta) in enumerate(approved_candidates):
         is_today = idx < today_count
-        if is_today:
+        if custom_privacy in ("private", "unlisted"):
+            # When forcing private or unlisted test mode, do not auto-schedule publication
+            publish_time = None
+            schedule_label = f"Manual ({custom_privacy.upper()})"
+            today_published += 1
+        elif is_today:
             today_published += 1
             delay_hours = config.get("schedule", {}).get("today_publish_delays_hours", [0, 4, 8])
             offset = delay_hours[idx] if idx < len(delay_hours) else 0
             publish_time = None if offset == 0 else (now + timedelta(hours=offset))
+            schedule_label = "Today (Public)" if offset == 0 else f"Today Scheduled (+{offset}h)"
         else:
             tomorrow_scheduled += 1
             tomorrow_delays = config.get("schedule", {}).get("tomorrow_schedule_delays_hours", [24, 28, 32])
             t_idx = idx - today_count
             offset = tomorrow_delays[t_idx] if t_idx < len(tomorrow_delays) else 24
             publish_time = now + timedelta(hours=offset)
+            schedule_label = f"Tomorrow ({publish_time.strftime('%Y-%m-%d %H:%M UTC')})"
 
         # Build YouTube metadata with AI output (fallback to templates if empty)
         title = yt_meta.title[:100] if yt_meta.title else format_metadata(config["metadata_templates"]["title_template"], meta, dance_name)
@@ -245,7 +261,6 @@ def run_pipeline():
         # Send Telegram Backup with rich metadata caption
         tags_display = ", ".join(tags[:8]) if tags else "dance cover, shorts"
         pin_display = yt_meta.pinned_comment[:100] if yt_meta.pinned_comment else "Rate this dance cover 1-10! 🔥"
-        schedule_label = "Today (Public)" if is_today else f"Tomorrow ({publish_time})"
         tg_caption = (
             f"📹 <b>New Dance Cover</b>\n\n"
             f"<b>🎬 Title:</b> {title}\n"
@@ -273,18 +288,41 @@ def run_pipeline():
             tags=tags,
             category_id=yt_upload_config.get("snippet_defaults", {}).get("categoryId", config["channel"].get("category_id", "24")),
             publish_at=publish_time,
+            privacy_status=custom_privacy,
             dry_run=args.dry_run,
         )
 
         if yt_id:
+            uploaded_status = custom_privacy if custom_privacy else ("scheduled" if publish_time else "public")
             uploaded_entries.append({
                 "youtube_id": yt_id,
                 "title": title,
                 "douyin_url": meta.url,
                 "published_at": publish_time.isoformat() if publish_time else now.isoformat(),
-                "status": "scheduled" if publish_time else "public",
+                "status": uploaded_status,
                 "processed_time": now.isoformat(),
             })
+
+            # Send Telegram Success Notification with direct Shorts link
+            yt_url = f"https://youtube.com/shorts/{yt_id}"
+            success_tg_msg = (
+                f"🎉 <b>[DanceCoverUni] Upload YouTube Shorts Thành Công!</b>\n\n"
+                f"🎬 <b>Tiêu đề:</b> {title}\n"
+                f"👤 <b>Creator:</b> {meta.author_name}\n"
+                f"🔒 <b>Trạng thái:</b> <code>{uploaded_status.upper()}</code>\n"
+                f"🔗 <b>Xem ngay:</b> {yt_url}\n"
+                f"🕒 <b>Lịch đăng:</b> {schedule_label}"
+            )
+            send_telegram_message(secrets.telegram_bot_token, secrets.telegram_chat_id, success_tg_msg)
+        else:
+            if not args.dry_run and secrets.youtube_client_id:
+                fail_tg_msg = (
+                    f"⚠️ <b>[DanceCoverUni] Upload YouTube Shorts Thất Bại!</b>\n\n"
+                    f"🎬 <b>Tiêu đề:</b> {title}\n"
+                    f"🔗 <b>Nguồn:</b> {meta.url}\n"
+                    f"<i>Vui lòng kiểm tra log GitHub Actions để biết chi tiết lỗi (Quota/OAuth).</i>"
+                )
+                send_telegram_message(secrets.telegram_bot_token, secrets.telegram_chat_id, fail_tg_msg)
 
         # Remove local file after processing
         try:
