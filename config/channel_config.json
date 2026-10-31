@@ -24,17 +24,32 @@
     "daily_max_candidates": 6,
     "daily_publish_count": 3,
     "schedule_next_day_count": 3,
-    "today_publish_delays_hours": [0, 4, 8],
-    "tomorrow_schedule_delays_hours": [24, 28, 32]
+    "today_publish_delays_hours": [
+      0,
+      4,
+      8
+    ],
+    "tomorrow_schedule_delays_hours": [
+      24,
+      28,
+      32
+    ]
   },
   "quality_gate": {
     "primary_vision_model": "gemini-3.1-flash-lite",
-    "fallback_vision_models": ["gemini-3.5-flash-lite", "gemini-2.5-flash"],
+    "fallback_vision_models": [
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash"
+    ],
     "primary_text_model": "gemini-3.1-flash-lite",
-    "fallback_text_models": ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"],
+    "fallback_text_models": [
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash"
+    ],
     "rate_limit_sleep_seconds": 3,
     "frame_sample_count": 3,
-    "criteria_prompt": "You are a professional video quality judge for a Dance Cover YouTube channel. Inspect the provided frames extracted from a single vertical short video. Determine if this video qualifies as a high-quality dance cover:\n1. Is it an active dance cover / choreography performance by one or more people?\n2. Is it a real video (NOT a static image, talking head, slideshow, meme, or podcast)?\n3. Is the main performer clearly visible without massive intrusive watermarks completely covering their body?\n4. Is it safe for all audiences (strictly NO nudity, explicit sexual gestures, violence, or hate symbols)?\n\nReturn strict JSON format with boolean fields:\n{\n  \"is_dance_cover\": boolean,\n  \"has_dancer\": boolean,\n  \"is_safe\": boolean,\n  \"no_blocking_watermark\": boolean,\n  \"overall_pass\": boolean,\n  \"detected_dance\": string,\n  \"rejection_reason\": string\n}"
+    "criteria_prompt": "You are a professional video quality judge and viral aesthetic curator for 'Dance Cover Universe' YouTube Shorts.\nInspect the provided frames extracted from a vertical short video. Determine if this video qualifies as a high-quality dance cover with viral potential:\n\nSAFETY & INTEGRITY (Strict):\n1. Is it an active dance cover / choreography performance by one or more people?\n2. Is it a real video (NOT a static image, talking head, slideshow, meme, or podcast)?\n3. Is the main performer clearly visible without massive intrusive watermarks completely covering their body?\n4. Is it safe for all audiences (strictly NO nudity, explicit sexual gestures, violence, or hate symbols)?\n\nVIRAL AESTHETIC SCORING (Rate each 1 to 10):\n- outfit_score (1-10): Stylish, trendy (Y2K, streetwear, K-pop stage/practice look), body-flattering silhouettes. (Low <=4 if sloppy, wrinkled, unpolished pajamas).\n- setting_score (1-10): Professional dance studio with mirrors/wood floor, clean urban street in-public, or vibrant studio lighting. (Low <=4 if messy, cramped, dim bedroom).\n- dance_score (1-10): Sharp musicality, beat-drop synchronization, clear body isolation, confident stage presence and energy.\n- viral_score: Weighted average of the three scores (1-10).\n- aesthetic_notes: Brief 1-sentence appraisal of outfit, setting, and dance vibe.\n\nAPPROVAL THRESHOLD:\n- Must pass all safety, real dance, and watermark checks.\n- viral_score >= 7.0 AND min(outfit_score, setting_score, dance_score) >= 5.\n\nReturn strict JSON format with fields:\n{\n  \"is_dance_cover\": boolean,\n  \"has_dancer\": boolean,\n  \"is_safe\": boolean,\n  \"no_blocking_watermark\": boolean,\n  \"outfit_score\": integer,\n  \"setting_score\": integer,\n  \"dance_score\": integer,\n  \"viral_score\": float,\n  \"aesthetic_notes\": string,\n  \"overall_pass\": boolean,\n  \"detected_dance\": string,\n  \"rejection_reason\": string\n}"
   },
   "seed_categories": [
     "Kpop dance cover",

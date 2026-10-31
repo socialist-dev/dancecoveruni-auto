@@ -7,13 +7,13 @@ import requests
 logger = logging.getLogger(__name__)
 
 FALLBACK_KEYWORDS = [
-    "Kpop舞蹈翻跳",
-    "抖音热舞挑战",
-    "女团舞翻跳",
-    "街舞编舞翻跳",
-    "热门舞蹈cover",
-    "爵士舞翻跳",
-    "男团舞翻跳",
+    "Kpop卡点女团舞 练功房",
+    "抖音热舞挑战 辣妹穿搭",
+    "街头爵士舞翻跳",
+    "韩舞翻跳排练室",
+    "热门舞蹈cover 卡点",
+    "高颜值女团舞翻跳",
+    "Urban街舞编舞 练功房",
 ]
 
 
@@ -83,10 +83,11 @@ def generate_chinese_keywords_with_gemini(
     api_key: Optional[str],
     seed_categories: List[str],
     candidate_models: Optional[List[str]] = None,
+    strategy: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """
-    Generates trending Chinese dance search keywords.
-    Tries candidate models sequentially (e.g. gemini-3.1-flash-lite -> gemini-3.5-flash-lite).
+    Generates trending Chinese dance search keywords combining 3 strategic dimensions:
+    [Dance Style / Trend] + [Outfit / Visual Aesthetic] + [Setting / Beat Drop].
     """
     if not api_key:
         logger.info("No GEMINI_API_KEY provided; utilizing fallback curated keywords.")
@@ -95,11 +96,20 @@ def generate_chinese_keywords_with_gemini(
     if not candidate_models:
         candidate_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
 
+    strat_kws = (strategy or {}).get("keyword_generation_strategy", {})
+    fashion_mods = strat_kws.get("fashion_visual_modifiers", ["辣妹热舞", "穿搭跳舞", "高颜值翻跳", "舞台造型"])
+    setting_mods = strat_kws.get("setting_vibe_modifiers", ["练功房", "排练室", "街头翻跳", "卡点"])
+
     prompt = (
-        f"Categories: {', '.join(seed_categories)}.\n"
-        f"Generate 6 specific trending Chinese search keywords to find Douyin vertical dance cover videos.\n"
-        f"Examples: 'Kpop女团舞翻跳', '热门编舞翻跳', '抖音热舞挑战'.\n"
-        f"Output ONLY a raw JSON array of strings, e.g. [\"关键词1\", \"关键词2\"]. No extra words."
+        f"You are the Lead Content & SEO Strategist for 'Dance Cover Universe' YouTube Shorts.\n"
+        f"Mission: Discover viral-potential vertical dance covers featuring attractive dancers, stylish fashion, clean studio/street backdrops, and impressive choreography.\n"
+        f"Target Categories: {', '.join(seed_categories)}.\n"
+        f"Aesthetic/Fashion Modifiers: {', '.join(fashion_mods)}.\n"
+        f"Setting/Vibe Modifiers: {', '.join(setting_mods)}.\n\n"
+        f"Task: Generate 6 ultra-targeted trending Chinese search queries for Douyin vertical dance videos.\n"
+        f"Combine 2-3 dimensions in each query: [Dance Style / Hot Challenge] + [Outfit / Visual Style] + [Setting / Beat Drop].\n"
+        f"Examples: 'Kpop卡点女团舞 练功房', '街头辣妹爵士舞', '爆款热舞穿搭', '韩舞翻跳排练室', '高颜值编舞翻跳'.\n"
+        f"Output ONLY a raw JSON array of strings, e.g. [\"关键词1\", \"关键词2\"]. No extra words or markdown notes."
     )
 
     from google import genai
@@ -179,7 +189,9 @@ def get_search_keywords(
                 if isinstance(c, dict) and "douyin_queries" in c:
                     curated_fallback.extend(c["douyin_queries"])
 
-    generated = generate_chinese_keywords_with_gemini(gemini_key, active_categories, candidate_models)
+    from .config_loader import load_channel_strategy
+    strategy = load_channel_strategy()
+    generated = generate_chinese_keywords_with_gemini(gemini_key, active_categories, candidate_models, strategy=strategy)
     if generated:
         return generated
 

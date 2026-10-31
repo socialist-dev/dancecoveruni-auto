@@ -14,6 +14,7 @@ from .config_loader import (
     save_history,
     load_youtube_upload_config,
     VideoMetadata,
+    QualityResult,
 )
 from .ai_keywords import get_search_keywords
 from .searcher import discover_video_urls, SearchResultItem
@@ -157,7 +158,7 @@ def run_pipeline():
     download_dir = Path(__file__).resolve().parent.parent / "downloads"
     download_dir.mkdir(parents=True, exist_ok=True)
 
-    approved_candidates: List[tuple[VideoMetadata, str, YouTubeMetadata]] = []
+    approved_candidates: List[tuple[VideoMetadata, str, YouTubeMetadata, QualityResult]] = []
     downloaded_count = 0
     rejected_count = 0
 
@@ -201,7 +202,7 @@ def run_pipeline():
                 candidate_models=vision_models,
                 sleep_seconds=q_gate.get("rate_limit_sleep_seconds", 3),
             )
-            approved_candidates.append((meta, verdict.detected_dance, yt_meta))
+            approved_candidates.append((meta, verdict.detected_dance, yt_meta, verdict))
         else:
             logger.info("❌ Video rejected: [%s] (Reason: %s)", url, verdict.rejection_reason)
             rejected_count += 1
@@ -232,7 +233,7 @@ def run_pipeline():
 
     custom_privacy = args.privacy_status if args.privacy_status != "default" else None
 
-    for idx, (meta, dance_name, yt_meta) in enumerate(approved_candidates):
+    for idx, (meta, dance_name, yt_meta, verdict) in enumerate(approved_candidates):
         is_today = idx < today_count
         if custom_privacy in ("private", "unlisted"):
             # When forcing private or unlisted test mode, do not auto-schedule publication
@@ -301,6 +302,11 @@ def run_pipeline():
                 "published_at": publish_time.isoformat() if publish_time else now.isoformat(),
                 "status": uploaded_status,
                 "processed_time": now.isoformat(),
+                "viral_score": verdict.viral_score,
+                "outfit_score": verdict.outfit_score,
+                "setting_score": verdict.setting_score,
+                "dance_score": verdict.dance_score,
+                "aesthetic_notes": verdict.aesthetic_notes,
             })
 
             # Send Telegram Success Notification with direct Shorts link

@@ -8,6 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG_PATH = ROOT_DIR / "config" / "channel_config.json"
 HISTORY_PATH = ROOT_DIR / "data" / "history.json"
 YOUTUBE_UPLOAD_CONFIG_PATH = ROOT_DIR / "config" / "youtube_upload.json"
+CHANNEL_STRATEGY_PATH = ROOT_DIR / "config" / "channel_strategy.json"
 
 
 class VideoMetadata(BaseModel):
@@ -30,6 +31,11 @@ class QualityResult(BaseModel):
     detected_dance: str = "Dance Cover"
     rejection_reason: str = ""
     frame_paths: List[str] = Field(default_factory=list)
+    outfit_score: int = 0
+    setting_score: int = 0
+    dance_score: int = 0
+    viral_score: float = 0.0
+    aesthetic_notes: str = ""
 
 
 class EnvSecrets(BaseModel):
@@ -94,4 +100,12 @@ def load_youtube_upload_config() -> Dict[str, Any]:
             "metadata_system_prompt": "",
         }
     with open(YOUTUBE_UPLOAD_CONFIG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_channel_strategy() -> Dict[str, Any]:
+    """Loads channel strategy and persona config from config/channel_strategy.json."""
+    if not CHANNEL_STRATEGY_PATH.exists():
+        return {}
+    with open(CHANNEL_STRATEGY_PATH, "r", encoding="utf-8") as f:
         return json.load(f)

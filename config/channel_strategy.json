@@ -1,0 +1,83 @@
+{
+  "channel_persona": {
+    "name": "Dance Cover Universe",
+    "mission": "Curate and showcase top-tier, viral-potential vertical dance covers featuring attractive aesthetics, stylish fashion, and impressive choreography.",
+    "target_audience": "Global Dance, K-pop, Douyin trend & Street Dance enthusiasts"
+  },
+  "aesthetic_standards": {
+    "outfit_and_styling": {
+      "preferred": [
+        "Trendy Y2K styling and crop tops",
+        "Fashion-forward streetwear and urban techwear",
+        "K-pop stage & idol dance practice outfits",
+        "Athletic, body-flattering silhouettes that accentuate movement lines",
+        "Coordinated group/duo aesthetic and clean hair/makeup"
+      ],
+      "avoid": [
+        "Sloppy, wrinkly, or baggy loungewear that hides dance lines",
+        "Distracting, messy, or oversized pajama-style clothes",
+        "Costumes that look unpolished or low-effort"
+      ]
+    },
+    "setting_and_environment": {
+      "preferred": [
+        "Modern professional dance practice studios with polished wood floors and clean mirrors",
+        "Atmospheric studios with ambient, warm, or neon accent lighting",
+        "Vibrant, clean urban outdoor/street in-public dance covers (plazas, clean city streets)",
+        "Aesthetic minimalist studio backdrops"
+      ],
+      "avoid": [
+        "Cluttered, messy, or cramped bedrooms/dorm rooms",
+        "Dimly lit, dark, or poorly exposed rooms",
+        "Grainy, low-resolution, or heavily shaky amateur home footage"
+      ]
+    },
+    "dance_and_energy": {
+      "preferred": [
+        "Sharp musicality and clean beat-drop synchronization (卡点)",
+        "Clear body isolation, popping, hip-hop swag, or fluid jazz lines",
+        "Confident facial expressions, stage presence, and camera connection",
+        "High-energy execution that commands viewer retention in the first 3 seconds"
+      ],
+      "avoid": [
+        "Stiff, hesitant, or unpracticed choreography",
+        "Low-energy, distracted, or emotionless dancing",
+        "Standing still without rhythm for extended periods"
+      ]
+    }
+  },
+  "keyword_generation_strategy": {
+    "dance_dimensions": [
+      "Kpop女团舞",
+      "Kpop男团舞",
+      "热门编舞翻跳",
+      "抖音热舞挑战",
+      "街舞编舞",
+      "爵士舞翻跳",
+      "爆款卡点舞"
+    ],
+    "fashion_visual_modifiers": [
+      "辣妹热舞",
+      "穿搭跳舞",
+      "高颜值翻跳",
+      "神级直拍",
+      "舞台造型"
+    ],
+    "setting_vibe_modifiers": [
+      "练功房",
+      "排练室",
+      "街头翻跳",
+      "全景卡点",
+      "镜前直拍"
+    ]
+  },
+  "viral_scoring_rubric": {
+    "min_overall_score": 7.0,
+    "min_sub_score": 5,
+    "weights": {
+      "outfit_aesthetic": 0.35,
+      "setting_lighting": 0.30,
+      "dance_energy": 0.35
+    }
+  }
+}
