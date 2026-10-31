@@ -6,7 +6,7 @@
   },
   "metadata_templates": {
     "title_template": "{detected_dance} Dance Cover #Shorts",
-    "description_template": "🔥 Amazing dance cover performance!\n\n🎵 Dance/Choreo: {detected_dance}\n👤 Creator Credit: {author_name} (ID: {author_id})\n🔗 Original Video: {original_url}\n\n#Shorts #DanceCover #DouyinDance #DanceChallenge #Choreography\n\n📌 All rights belong to the original creators and artists. For credit or video removal inquiries, please contact us.",
+    "description_template": "Amazing dance cover performance!\n\nDance/Choreo: {detected_dance}\n\n#Shorts #DanceCover #DouyinDance #DanceChallenge #Choreography\n\nAll rights belong to the original creators and artists. For credit or video removal inquiries, please contact us.",
     "tags": [
       "dance cover",
       "shorts",

@@ -18,27 +18,20 @@ class YouTubeMetadata(BaseModel):
     tags: List[str] = Field(default_factory=list)
     pinned_comment: str = ""
 
-    def format_full_description(self, author_name: str, original_url: str) -> str:
-        """Combines all description parts into final YouTube description."""
+    def format_full_description(self, author_name: Optional[str] = None, original_url: Optional[str] = None) -> str:
+        """Combines all description parts into final YouTube description without credits or icons."""
         parts = []
         if self.description_contextual:
             parts.append(self.description_contextual)
         if self.description_thematic:
             parts.append(f"\n{self.description_thematic}")
-
-        # Credit section
-        parts.append(
-            f"\n👤 Creator Credit: {author_name}\n"
-            f"🔗 Original Video: {original_url}\n"
-        )
-
         if self.description_hashtags:
-            parts.append(self.description_hashtags)
+            parts.append(f"\n{self.description_hashtags}")
         if self.description_keyword_cloud:
-            parts.append(f"\n🔑 {self.description_keyword_cloud}")
+            parts.append(f"\n{self.description_keyword_cloud}")
 
         parts.append(
-            "\n📌 All rights belong to the original creators and artists. "
+            "\nAll rights belong to the original creators and artists. "
             "For credit or video removal inquiries, please contact us."
         )
         return "\n".join(parts)
@@ -161,7 +154,7 @@ def _fallback_metadata(detected_dance: str, jina_title: str = "") -> YouTubeMeta
     title = jina_title if jina_title else f"{detected_dance} Dance Cover #dance #dancecover #shorts"
     return YouTubeMetadata(
         title=title[:100],
-        description_contextual=f"🔥 Amazing {detected_dance} dance cover performance!",
+        description_contextual=f"Amazing {detected_dance} dance cover performance!",
         description_hashtags="#dance #dancecover #shorts #dancechallenge #choreography "
                             "#kpopdance #streetdance #douyindance #viralshorts "
                             "#dancetutorial #hiphopdance #urbandance #dancemoves "
